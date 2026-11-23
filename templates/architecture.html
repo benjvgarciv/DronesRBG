@@ -1,0 +1,283 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block content %}
+<!-- ARCHITECTURE & JUSTIFICATION HERO -->
+<section class="page-hero">
+    <div class="page-hero-content">
+        <h2>
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color:var(--primary-blue);">
+                <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/>
+            </svg>
+            Arquitectura y Justificación Técnica
+        </h2>
+        <p>
+            Fundamentación teórica y técnica del por qué <strong>MongoDB (PyMongo)</strong> supera a las bases de datos relacionales (SQL) en la operación aeronáutica de drones industriales.
+        </p>
+    </div>
+    <div class="hero-actions">
+        <a href="{% url 'dashboard' %}" class="btn btn-outline btn-sm">← Volver al Tablero</a>
+        <a href="{% url 'operator' %}" class="btn btn-primary btn-sm">Probar en el Simulador</a>
+    </div>
+</section>
+
+<!-- SECTION 1: DATOS GENERALES DEL PROYECTO -->
+<section class="hud-panel" style="margin-bottom:1.5rem;">
+    <div class="panel-header">
+        <h3 class="panel-title">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color:var(--primary-blue);"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+            1. Datos Generales del Proyecto
+        </h3>
+        <span class="panel-badge">Especificación Oficial RBG</span>
+    </div>
+
+    <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(280px, 1fr));gap:1rem;">
+        <div style="background:var(--bg-card-subtle);padding:1.25rem;border-radius:var(--radius-sm);border:1px solid var(--border-subtle);">
+            <div style="font-size:0.7rem;color:var(--text-dim);font-weight:600;text-transform:uppercase;letter-spacing:0.04em;">Nombre del Proyecto</div>
+            <div style="font-size:1.1rem;font-weight:700;color:var(--text-main);margin-top:0.35rem;">
+                Drones RBG - Centro de Control de Telemetría y Misiones con Drones
+            </div>
+        </div>
+
+        <div style="background:var(--bg-card-subtle);padding:1.25rem;border-radius:var(--radius-sm);border:1px solid var(--border-subtle);">
+            <div style="font-size:0.7rem;color:var(--text-dim);font-weight:600;text-transform:uppercase;letter-spacing:0.04em;">Plataforma / Arquitectura</div>
+            <div style="font-size:1.1rem;font-weight:700;color:var(--text-main);margin-top:0.35rem;">
+                Python + Django | MongoDB mediante PyMongo
+            </div>
+            <div style="font-size:0.76rem;color:var(--text-muted);margin-top:4px;">
+                Frontend: Vanilla HTML5 / Modern CSS / Leaflet Maps / Chart.js
+            </div>
+        </div>
+
+        <div style="background:var(--bg-card-subtle);padding:1.25rem;border-radius:var(--radius-sm);border:1px solid var(--border-subtle);">
+            <div style="font-size:0.7rem;color:var(--text-dim);font-weight:600;text-transform:uppercase;letter-spacing:0.04em;">Integrantes del Equipo (RBG)</div>
+            <div style="font-size:0.95rem;font-weight:600;color:var(--text-main);margin-top:0.35rem;display:flex;flex-direction:column;gap:0.25rem;">
+                <div><span style="color:var(--text-dim);font-family:var(--font-mono);font-size:0.8rem;">[R]</span> Rodrigo Tapia</div>
+                <div><span style="color:var(--text-dim);font-family:var(--font-mono);font-size:0.8rem;">[B]</span> Benjamin Garcia</div>
+                <div><span style="color:var(--text-dim);font-family:var(--font-mono);font-size:0.8rem;">[G]</span> Gustavo Jaramillo</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- SECTION 2: PLANTEAMIENTO DEL PROBLEMA & POR QUÉ SQL FALLA -->
+<section class="hud-panel" style="margin-bottom:1.5rem;">
+    <div class="panel-header">
+        <h3 class="panel-title">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color:var(--primary-blue);"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+            2. Planteamiento del Problema
+        </h3>
+        <span class="panel-badge">Limitaciones de SQL Relacional</span>
+    </div>
+
+    <p style="color:var(--text-muted);font-size:0.88rem;margin-bottom:1.35rem;line-height:1.6;">
+        En el sector industrial, agrícola y de seguridad, la operación de flotas de drones requiere planificar rutas complejas de vuelo (misiones) y monitorear variables de salud y ubicación de los vehículos en tiempo real (telemetría). Las bases de datos relacionales tradicionales (SQL) enfrentan severas limitaciones en este escenario debido a:
+    </p>
+
+    <div class="grid-2">
+        <!-- LIMITATION 1: ATRIBUTOS HETEROGÉNEOS -->
+        <div style="background:#ffffff;border:1px solid var(--border-subtle);border-radius:var(--radius-sm);padding:1.35rem;box-shadow:var(--shadow-card);">
+            <div style="display:flex;align-items:center;gap:0.6rem;margin-bottom:0.85rem;">
+                <span style="background:#0f172a;color:#ffffff;padding:0.2rem 0.6rem;border-radius:var(--radius-xs);font-family:var(--font-mono);font-size:0.72rem;font-weight:700;">
+                    PUNTO 1
+                </span>
+                <h4 style="font-size:1rem;color:var(--text-main);font-weight:700;">Atributos de Ruta Heterogéneos</h4>
+            </div>
+
+            <p style="font-size:0.84rem;color:var(--text-muted);margin-bottom:0.85rem;line-height:1.6;">
+                Cada punto de navegación (<em>waypoint</em>) exige tareas de naturaleza distinta. Por ejemplo:
+            </p>
+
+            <ul style="font-size:0.8rem;color:var(--text-main);margin-left:1.2rem;margin-bottom:1.15rem;line-height:1.8;">
+                <li><strong>Capturar foto:</strong> Parámetros de cámara RGB, ISO, tiempo de exposición, apertura, ángulo del gimbal, ráfaga.</li>
+                <li><strong>Medir sensores térmicos:</strong> Paleta radiométrica, emisividad superficial, umbral de alarma en °C, grabación de stream FLIR.</li>
+                <li><strong>Pausar o realizar giros 360°:</strong> Tiempo de hover estacionario, velocidad angular en grados/segundo, solapamiento panorámico.</li>
+                <li><strong>Escaneo multiespectral:</strong> Bandas espectrales (NDVI, RedEdge, NIR), calibración de reflectancia solar.</li>
+            </ul>
+
+            <div style="background:#fff1f2;border-left:3px solid #e11d48;padding:0.85rem;border-radius:var(--radius-xs);font-size:0.78rem;color:#9f1239;margin-bottom:0.75rem;line-height:1.5;">
+                <strong style="color:#881337;">En SQL tradicional:</strong> Obligaría a crear una tabla gigante con decenas de columnas donde el 90% son <code>NULL</code>, o diseñar múltiples tablas relacionales normalizadas que exigen costosos <code>JOINs</code> para reconstruir una sola ruta.
+            </div>
+
+            <div style="background:#ecfdf5;border-left:3px solid #059669;padding:0.85rem;border-radius:var(--radius-xs);font-size:0.78rem;color:#065f46;line-height:1.5;">
+                <strong style="color:#064e3b;">Solución en MongoDB:</strong> Cada waypoint es un subdocumento BSON polimórfico anidado dentro de la colección <code>missions</code>. Almacena exactamente los campos que necesita sin restricciones de esquema rígido.
+            </div>
+        </div>
+
+        <!-- LIMITATION 2: TELEMETRÍA EN SERIE TEMPORAL -->
+        <div style="background:#ffffff;border:1px solid var(--border-subtle);border-radius:var(--radius-sm);padding:1.35rem;box-shadow:var(--shadow-card);">
+            <div style="display:flex;align-items:center;gap:0.6rem;margin-bottom:0.85rem;">
+                <span style="background:#0f172a;color:#ffffff;padding:0.2rem 0.6rem;border-radius:var(--radius-xs);font-family:var(--font-mono);font-size:0.72rem;font-weight:700;">
+                    PUNTO 2
+                </span>
+                <h4 style="font-size:1rem;color:var(--text-main);font-weight:700;">Volumen de Telemetría en Serie Temporal</h4>
+            </div>
+
+            <p style="font-size:0.84rem;color:var(--text-muted);margin-bottom:0.85rem;line-height:1.6;">
+                El envío continuo de ráfagas de datos durante el vuelo (ubicación GPS, altitud, velocidad, nivel de batería, temperatura y voltaje) exige escribir lecturas frecuentes con sellos de tiempo (<em>timestamps</em>).
+            </p>
+
+            <ul style="font-size:0.8rem;color:var(--text-main);margin-left:1.2rem;margin-bottom:1.15rem;line-height:1.8;">
+                <li><strong>Alta Frecuencia:</strong> Ráfagas de 5Hz a 20Hz por dron en flotas concurrentes simultáneas.</li>
+                <li><strong>Sellos Temporales Precisos:</strong> Índices ordenados por <code>timestamp</code> e identificador de misión.</li>
+                <li><strong>Patrón Append-Only:</strong> Los registros de telemetría son inmutables; se insertan continuamente sin actualizaciones destructivas.</li>
+            </ul>
+
+            <div style="background:#fff1f2;border-left:3px solid #e11d48;padding:0.85rem;border-radius:var(--radius-xs);font-size:0.78rem;color:#9f1239;margin-bottom:0.75rem;line-height:1.5;">
+                <strong style="color:#881337;">En SQL tradicional:</strong> Los motores ACID relacionales con bloqueos de tabla/página y comprobaciones estrictas de llaves foráneas sufren cuellos de botella ante escrituras de ráfagas masivas en tiempo real.
+            </div>
+
+            <div style="background:#ecfdf5;border-left:3px solid #059669;padding:0.85rem;border-radius:var(--radius-xs);font-size:0.78rem;color:#065f46;line-height:1.5;">
+                <strong style="color:#064e3b;">Solución en MongoDB:</strong> Motor optimizado para escrituras masivas directas con PyMongo (<code>insert_one</code> / <code>insert_many</code>), soporte de colecciones <em>Time-Series</em> y agregaciones eficientes con Pipeline (<code>$bucket</code>, <code>$group</code>, <code>$avg</code>).
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- SECTION 3: USUARIOS PRINCIPALES Y CASOS DE USO -->
+<section class="hud-panel" style="margin-bottom:1.5rem;">
+    <div class="panel-header">
+        <h3 class="panel-title">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color:var(--primary-blue);"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+            3. Usuarios Principales y Casos de Uso
+        </h3>
+        <span class="panel-badge">Roles del Sistema</span>
+    </div>
+
+    <div class="grid-2">
+        <div style="background:var(--bg-card-subtle);padding:1.35rem;border-radius:var(--radius-sm);border:1px solid var(--border-subtle);">
+            <div style="display:flex;align-items:center;gap:0.5rem;margin-bottom:0.6rem;">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color:var(--primary-blue);"><circle cx="12" cy="12" r="10"/><polygon points="16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88 16.24 7.76"/></svg>
+                <h4 style="font-size:1rem;color:var(--text-main);font-weight:700;">Operador de Vuelo</h4>
+            </div>
+            <p style="font-size:0.84rem;color:var(--text-muted);line-height:1.6;margin-bottom:0.85rem;">
+                Responsable del diseño táctico de rutas, configuración de tareas por waypoint, despegue y supervisión en tiempo real de los instrumentos de vuelo.
+            </p>
+            <div style="font-size:0.8rem;color:var(--text-main);line-height:1.75;">
+                <div>• Diseña misiones asignando waypoints en mapa interactivo.</div>
+                <div>• Define configuraciones de tareas heterogéneas por punto de control.</div>
+                <div>• Ejecuta la misión y monitorea la ruta en vivo con telemetría HUD.</div>
+            </div>
+            <div style="margin-top:1.15rem;">
+                <a href="{% url 'operator' %}" class="btn btn-outline btn-sm">Abrir Módulo de Operador →</a>
+            </div>
+        </div>
+
+        <div style="background:var(--bg-card-subtle);padding:1.35rem;border-radius:var(--radius-sm);border:1px solid var(--border-subtle);">
+            <div style="display:flex;align-items:center;gap:0.5rem;margin-bottom:0.6rem;">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color:var(--primary-blue);"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+                <h4 style="font-size:1rem;color:var(--text-main);font-weight:700;">Comandante de Flota / Auditor</h4>
+            </div>
+            <p style="font-size:0.84rem;color:var(--text-muted);line-height:1.6;margin-bottom:0.85rem;">
+                Responsable del análisis de métricas globales, auditoría de desgaste de baterías según condiciones ambientales y revisión forense de datos.
+            </p>
+            <div style="font-size:0.8rem;color:var(--text-main);line-height:1.75;">
+                <div>• Consulta el historial completo de misiones registradas.</div>
+                <div>• Analiza métricas de rendimiento y confiabilidad por dron.</div>
+                <div>• Evalúa el consumo de energía según velocidad, altitud y viento.</div>
+            </div>
+            <div style="margin-top:1.15rem;">
+                <a href="{% url 'commander' %}" class="btn btn-outline btn-sm">Abrir Módulo de Auditoría →</a>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- SECTION 4: COMPARATIVA DE MODELOS DE DATOS (ESQUEMA SQL VS MONGODB) -->
+<section class="hud-panel">
+    <div class="panel-header">
+        <h3 class="panel-title">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color:var(--primary-blue);"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
+            Comparativa Visual de Esquema: SQL Relacional vs MongoDB BSON
+        </h3>
+        <span class="panel-badge">Evidencia Técnica para Evaluación</span>
+    </div>
+
+    <div class="grid-2">
+        <!-- SQL Architecture -->
+        <div>
+            <div style="font-size:0.78rem;font-weight:700;color:var(--text-dim);margin-bottom:0.5rem;font-family:var(--font-mono);">
+                [!] Modelo SQL Relacional (Rígido, Múltiples Tablas y Columnas Nulas)
+            </div>
+            <pre class="code-viewer" style="color:#cbd5e1;font-size:0.76rem;"><code>-- SQL requiere fragmentar cada tarea en tablas separadas:
+CREATE TABLE missions (
+    id INT PRIMARY KEY,
+    name VARCHAR(255),
+    sector VARCHAR(50)
+);
+
+CREATE TABLE waypoints (
+    id INT PRIMARY KEY,
+    mission_id INT REFERENCES missions(id),
+    lat DECIMAL(9,6),
+    lng DECIMAL(9,6),
+    action_type VARCHAR(50)
+);
+
+-- Tablas hijas con relaciones 1-a-1 o columnas nulas:
+CREATE TABLE waypoint_photo_tasks (
+    waypoint_id INT REFERENCES waypoints(id),
+    camera VARCHAR(50),
+    iso INT,
+    shutter VARCHAR(20),
+    gimbal_pitch INT
+);
+
+CREATE TABLE waypoint_thermal_tasks (
+    waypoint_id INT REFERENCES waypoints(id),
+    palette VARCHAR(50),
+    emissivity DECIMAL(3,2),
+    temp_alarm DECIMAL(5,2)
+);
+
+-- Para leer 1 ruta: Múltiples LEFT JOINs pesados:
+SELECT * FROM missions m
+JOIN waypoints w ON m.id = w.mission_id
+LEFT JOIN waypoint_photo_tasks p ON w.id = p.waypoint_id
+LEFT JOIN waypoint_thermal_tasks t ON w.id = t.waypoint_id;</code></pre>
+        </div>
+
+        <!-- MongoDB BSON Architecture -->
+        <div>
+            <div style="font-size:0.78rem;font-weight:700;color:var(--text-main);margin-bottom:0.5rem;font-family:var(--font-mono);">
+                [✓] Modelo MongoDB BSON (Documento Único con Subdocumentos Embebidos)
+            </div>
+            <pre class="code-viewer" style="color:#f8fafc;font-size:0.76rem;"><code>// MongoDB almacena toda la misión en 1 solo documento flexible:
+{
+  "_id": ObjectId("6650a..."),
+  "mission_id": "MSN-2026-001",
+  "name": "Inspección Termográfica Subestación",
+  "sector": "Industrial",
+  "waypoints": [
+    {
+      "wp_num": 1,
+      "lat": -33.4348,
+      "lng": -70.6482,
+      "action": "PHOTO_CAPTURE",
+      "task_config": {
+        "camera": "RGB 48MP",
+        "iso": 100,
+        "shutter_speed": "1/1200s",
+        "gimbal_pitch_deg": -45
+      }
+    },
+    {
+      "wp_num": 2,
+      "lat": -33.4325,
+      "lng": -70.6455,
+      "action": "THERMAL_SCAN",
+      "task_config": {
+        "sensor": "FLIR Vue Pro R",
+        "palette": "IronBow",
+        "temp_alarm_celsius": 75.0
+      }
+    }
+  ]
+}
+
+// 1 sola consulta PyMongo instantánea sin JOINs:
+mission = db.missions.find_one({"mission_id": "MSN-2026-001"})</code></pre>
+        </div>
+    </div>
+</section>
+{% endblock %}

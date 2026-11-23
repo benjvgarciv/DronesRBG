@@ -1,0 +1,125 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ page_title }} | Drones RBG - Centro de Control de Telemetría</title>
+    
+    <!-- Meta SEO -->
+    <meta name="description" content="Drones RBG - Centro de Control de Telemetría y Misiones con Drones. Aplicación Web con Python, Django y MongoDB (PyMongo). Operador de Vuelo y Comandante de Flota.">
+    <meta name="author" content="Rodrigo Tapia, Benjamin Garcia, Gustavo Jaramillo">
+
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+    <!-- Leaflet CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
+
+    <!-- Custom Design System -->
+    <link rel="stylesheet" href="{% static 'css/main.css' %}?v=2.0">
+    <style>
+        .nav-links, .nav-link, .topbar-telemetry-status, .status-pill, .hud-clock {
+            white-space: nowrap !important;
+        }
+    </style>
+
+    {% block extra_head %}{% endblock %}
+</head>
+<body>
+
+    <!-- TOPBAR -->
+    <header class="topbar">
+        <a href="{% url 'dashboard' %}" class="topbar-brand">
+            <div class="brand-icon-box">
+                <!-- Precision Drone Icon SVG -->
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="12" cy="12" r="3"/>
+                    <path d="M4 4h4v4H4zM16 4h4v4h-4zM4 16h4v4H4zM16 16h4v4h-4z"/>
+                    <line x1="8" y1="8" x2="10" y2="10"/>
+                    <line x1="16" y1="8" x2="14" y2="10"/>
+                    <line x1="8" y1="16" x2="10" y2="14"/>
+                    <line x1="16" y1="16" x2="14" y2="14"/>
+                </svg>
+            </div>
+            <div class="brand-texts">
+                <h1>DRONES RBG</h1>
+                <div class="brand-subtitle">Centro de Control de Telemetría</div>
+            </div>
+        </a>
+
+        <!-- Navigation Links -->
+        <nav>
+            <ul class="nav-links">
+                <li>
+                    <a href="{% url 'dashboard' %}" class="nav-link {% if active_tab == 'dashboard' %}active{% endif %}" style="white-space: nowrap;">
+                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+                        Tablero
+                    </a>
+                </li>
+                <li>
+                    <a href="{% url 'operator' %}" class="nav-link {% if active_tab == 'operator' %}active{% endif %}" style="white-space: nowrap;">
+                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polygon points="16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88 16.24 7.76"/></svg>
+                        Operador de Vuelo
+                    </a>
+                </li>
+                <li>
+                    <a href="{% url 'commander' %}" class="nav-link {% if active_tab == 'commander' %}active{% endif %}" style="white-space: nowrap;">
+                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+                        Comandante & Auditoría
+                    </a>
+                </li>
+                <li>
+                    <a href="{% url 'architecture' %}" class="nav-link {% if active_tab == 'architecture' %}active{% endif %}" style="white-space: nowrap;">
+                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
+                        MongoDB vs SQL
+                    </a>
+                </li>
+            </ul>
+        </nav>
+
+        <!-- Right System Indicators -->
+        <div class="topbar-telemetry-status" style="white-space: nowrap;">
+            <div id="mongoStatusPill" class="status-pill" title="Conexión de Base de Datos" style="white-space: nowrap;">
+                <span class="pulse-dot"></span>
+                <span class="status-text" style="white-space: nowrap;">Servidor Conectado</span>
+            </div>
+
+            <div class="hud-clock" style="white-space: nowrap;">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                <span id="hudClockText" style="white-space: nowrap;">00:00:00 UTC</span>
+            </div>
+        </div>
+    </header>
+
+    <!-- MAIN BODY CONTENT -->
+    <main class="app-container">
+        {% block content %}{% endblock %}
+    </main>
+
+    <!-- FOOTER -->
+    <footer class="app-footer">
+        <div><strong>Drones RBG</strong> — Centro de Control de Telemetría y Misiones con Drones</div>
+        <div class="footer-credits">
+            Desarrollado con <span>Python + Django</span> y <span>MongoDB mediante PyMongo</span> por 
+            <span>Rodrigo Tapia</span>, <span>Benjamin Garcia</span> y <span>Gustavo Jaramillo</span>.
+        </div>
+        <div style="margin-top:0.4rem;font-size:0.72rem;color:var(--text-subtle);">
+            Arquitectura NoSQL orientada a atributos de misión heterogéneos y volumen de telemetría en serie temporal.
+        </div>
+    </footer>
+
+    <!-- Leaflet JS -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+    
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+
+    <!-- Global App JS -->
+    <script src="{% static 'js/main.js' %}"></script>
+
+    {% block extra_scripts %}{% endblock %}
+</body>
+</html>

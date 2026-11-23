@@ -1,0 +1,613 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block content %}
+<!-- COMMANDER & AUDITOR HERO -->
+<section class="page-hero">
+    <div class="page-hero-content">
+        <h2>
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                stroke-linecap="round" stroke-linejoin="round" style="color:var(--primary-blue);">
+                <line x1="18" y1="20" x2="18" y2="10" />
+                <line x1="12" y1="20" x2="12" y2="4" />
+                <line x1="6" y1="20" x2="6" y2="14" />
+            </svg>
+            Centro del Comandante de Flota y Auditoría
+        </h2>
+        <p>
+            Auditoría operativa de misiones, consumo de batería y rendimiento de motores por vuelo.
+            Audita el <strong>consumo de energía según las condiciones de vuelo</strong> (velocidad, altitud, temperatura),
+            monitorea métricas acumuladas por dron y audita la telemetría registrada en la plataforma.
+        </p>
+    </div>
+    <div class="hero-actions" style="display:flex;flex-wrap:wrap;gap:0.75rem;align-items:center;">
+        <form method="GET" action="{% url 'commander' %}" style="display:flex;align-items:center;gap:0.45rem;flex-wrap:wrap;">
+            <!-- Filtro Sector (MongoDB Query) -->
+            <select name="sector" class="form-select" style="font-size:0.76rem;padding:0.35rem 0.5rem;" onchange="this.form.submit()">
+                <option value="ALL">Todos los Sectores</option>
+                {% for s in distinct_sectors %}
+                <option value="{{ s }}" {% if filter_sector == s %}selected{% endif %}>Sector: {{ s }}</option>
+                {% endfor %}
+            </select>
+
+            <!-- Filtro Estado (MongoDB Query) -->
+            <select name="status" class="form-select" style="font-size:0.76rem;padding:0.35rem 0.5rem;" onchange="this.form.submit()">
+                <option value="ALL">Todos los Estados</option>
+                {% for st in distinct_statuses %}
+                <option value="{{ st }}" {% if filter_status == st %}selected{% endif %}>
+                    Estado: {% if st == 'COMPLETED' %}Completada{% elif st == 'IN_PROGRESS' %}En curso{% elif st == 'PLANNED' %}Planificada{% elif st == 'ABORTED' %}Cancelada{% elif st == 'AVAILABLE' %}Disponible{% else %}{{ st }}{% endif %}
+                </option>
+                {% endfor %}
+            </select>
+
+            <!-- Selector de Misión -->
+            <select id="auditorMissionSelector" name="mission_id" class="form-select"
+                style="min-width:230px;font-size:0.78rem;padding:0.35rem 0.5rem;" onchange="this.form.submit()">
+                {% for m in missions %}
+                <option value="{{ m.mission_id }}" {% if m.mission_id == selected_mission_id %}selected{% endif %}>
+                    {{ m.mission_id }} • {{ m.name|truncatechars:22 }} ({% if m.status == 'COMPLETED' %}Completada{% elif m.status == 'IN_PROGRESS' %}En curso{% elif m.status == 'PLANNED' %}Planificada{% elif m.status == 'ABORTED' %}Cancelada{% else %}{{ m.status }}{% endif %})
+                </option>
+                {% empty %}
+                <option value="">Sin misiones con los filtros aplicados</option>
+                {% endfor %}
+            </select>
+        </form>
+
+        {% if audit_data and audit_data.mission %}
+        <!-- Acciones del Segundo Flujo de Negocio: Conclusión / Cierre y Eliminación en MongoDB -->
+        <div style="display:flex;align-items:center;gap:0.4rem;">
+            {% if audit_data.mission.status != "COMPLETED" %}
+            <button class="btn btn-primary btn-sm" onclick="completeSelectedMission('{{ selected_mission_id }}')" style="background:#059669;border-color:#059669;font-size:0.75rem;display:inline-flex;align-items:center;gap:0.3rem;" title="Concluir misión y liberar dron a AVAILABLE">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                Concluir y Aprobar
+            </button>
+            {% else %}
+            <span class="badge-status COMPLETED" style="font-size:0.72rem;">AUDITADA ✓</span>
+            {% endif %}
+
+            <button class="btn btn-outline btn-sm" onclick="deleteSelectedMission('{{ selected_mission_id }}')" style="color:#dc2626;border-color:#fecaca;font-size:0.75rem;display:inline-flex;align-items:center;gap:0.3rem;" title="Eliminar misión">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+                Eliminar
+            </button>
+        </div>
+        {% endif %}
+    </div>
+</section>
+
+{% if audit_data %}
+<!-- AUDIT KPI SUMMARY STRIP -->
+<section class="kpi-grid">
+    <div class="kpi-card">
+        <div class="kpi-header">
+            <span class="kpi-title">Caída de Batería</span>
+            <span class="kpi-icon">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                    stroke-linecap="round" stroke-linejoin="round">
+                    <rect x="1" y="6" width="18" height="12" rx="2" />
+                    <line x1="23" y1="11" x2="23" y2="13" />
+                </svg>
+            </span>
+        </div>
+        <div class="kpi-value" style="color:#0284c7;">-{{ audit_data.summary_metrics.battery_drop_pct }}%</div>
+        <div class="kpi-subtext">
+            <span>Consumo total durante la misión</span>
+        </div>
+    </div>
+
+    <div class="kpi-card">
+        <div class="kpi-header">
+            <span class="kpi-title">Eficiencia Energética</span>
+            <span class="kpi-icon">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                    stroke-linecap="round" stroke-linejoin="round">
+                    <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
+                </svg>
+            </span>
+        </div>
+        <div class="kpi-value">{{ audit_data.summary_metrics.efficiency_pct_per_km }} <span
+                style="font-size:1rem;color:var(--text-dim);font-weight:500;">%/km</span></div>
+        <div class="kpi-subtext">
+            <span>Tasa de descarga por kilómetro</span>
+        </div>
+    </div>
+
+    <div class="kpi-card">
+        <div class="kpi-header">
+            <span class="kpi-title">Velocidad Promedio</span>
+            <span class="kpi-icon">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                    stroke-linecap="round" stroke-linejoin="round">
+                    <polyline points="22 12 18 12 15 21 9 3 6 12 2 12" />
+                </svg>
+            </span>
+        </div>
+        <div class="kpi-value">{{ audit_data.summary_metrics.avg_speed_kmh }} <span
+                style="font-size:1rem;color:var(--text-dim);font-weight:500;">km/h</span></div>
+        <div class="kpi-subtext">
+            <span>Pico máximo: <strong>{{ audit_data.summary_metrics.max_speed_kmh }} km/h</strong></span>
+        </div>
+    </div>
+
+    <div class="kpi-card">
+        <div class="kpi-header">
+            <span class="kpi-title">Altitud Máxima</span>
+            <span class="kpi-icon">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                    stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
+                </svg>
+            </span>
+        </div>
+        <div class="kpi-value">{{ audit_data.summary_metrics.max_altitude_m }} <span
+                style="font-size:1rem;color:var(--text-dim);font-weight:500;">m</span></div>
+        <div class="kpi-subtext">
+            <span>Altitud media: <strong>{{ audit_data.summary_metrics.avg_altitude_m }} m</strong></span>
+        </div>
+    </div>
+</section>
+
+<!-- TIME-SERIES AUDIT CHARTS -->
+<div class="grid-2">
+    <!-- Chart 1: Battery vs Flight Conditions -->
+    <div class="hud-panel">
+        <div class="panel-header">
+            <h3 class="panel-title">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                    stroke-linecap="round" stroke-linejoin="round" style="color:var(--primary-blue);">
+                    <polyline points="22 12 18 12 15 21 9 3 6 12 2 12" />
+                </svg>
+                Consumo de Batería vs Condiciones de Vuelo
+            </h3>
+            <span class="panel-badge">{{ audit_data.telemetry_count }} Puntos Serie Temporal</span>
+        </div>
+
+        <p style="font-size:0.78rem;color:var(--text-muted);margin-bottom:1.15rem;line-height:1.5;">
+            Relación de descarga de la batería (eje izquierdo) frente a variaciones de velocidad y altitud (eje
+            derecho).
+        </p>
+
+        <div style="height:250px;position:relative;">
+            <canvas id="batteryVsConditionsChart"></canvas>
+        </div>
+
+        <!-- Telemetry Data Table -->
+        <div style="margin-top:1.15rem;border-top:1px solid var(--border-subtle);padding-top:0.75rem;">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.4rem;">
+                <span style="font-size:0.74rem;font-weight:700;color:var(--text-main);text-transform:uppercase;letter-spacing:0.04em;">Últimas Lecturas Registradas</span>
+                <span style="font-size:0.68rem;color:var(--text-dim);font-family:var(--font-mono);">Serie Temporal de Vuelo</span>
+            </div>
+            <div style="overflow-x:auto;">
+                <table class="hud-table" style="font-size:0.75rem;font-family:var(--font-mono);">
+                    <thead>
+                        <tr>
+                            <th>Hora Muestra</th>
+                            <th>Batería</th>
+                            <th>Velocidad</th>
+                            <th>Altitud</th>
+                            <th>Estado</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for r in recent_readings %}
+                        <tr>
+                            <td style="color:var(--text-main);font-weight:600;">{{ r.time }}</td>
+                            <td style="color:#059669;font-weight:700;">{{ r.battery }}%</td>
+                            <td>{{ r.speed }} km/h</td>
+                            <td>{{ r.altitude }} m</td>
+                            <td><span style="background:#ecfdf5;color:#047857;padding:1px 5px;border-radius:3px;font-size:0.65rem;font-weight:600;">En ruta</span></td>
+                        </tr>
+                        {% empty %}
+                        <tr><td colspan="5" style="text-align:center;color:var(--text-dim);padding:8px;">Sin telemetría reciente para esta misión</td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Chart 2: Instantaneous Power & Motor Temperature -->
+    <div class="hud-panel">
+        <div class="panel-header">
+            <h3 class="panel-title">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                    stroke-linecap="round" stroke-linejoin="round" style="color:var(--primary-blue);">
+                    <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" />
+                </svg>
+                Potencia Consumida (Watts) vs Temp. Motores (°C)
+            </h3>
+            <span class="panel-badge">Diagnóstico de Motores</span>
+        </div>
+
+        <p style="font-size:0.78rem;color:var(--text-muted);margin-bottom:1.15rem;line-height:1.5;">
+            Supervisión térmica de los variadores ESC y bobinas del motor eléctrico bajo esfuerzo de sustentación.
+        </p>
+
+        <div style="height:250px;position:relative;">
+            <canvas id="diagnosticPowerChart"></canvas>
+        </div>
+
+        <!-- Telemetry Data Table (Electrical & Thermal Inverter) -->
+        <div style="margin-top:1.15rem;border-top:1px solid var(--border-subtle);padding-top:0.75rem;">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.4rem;">
+                <span style="font-size:0.74rem;font-weight:700;color:var(--text-main);text-transform:uppercase;letter-spacing:0.04em;">Telemetría Térmica e Inversor (Sensores)</span>
+                <span style="font-size:0.68rem;color:var(--text-dim);font-family:var(--font-mono);">Subdocumento IoT</span>
+            </div>
+            <div style="overflow-x:auto;">
+                <table class="hud-table" style="font-size:0.75rem;font-family:var(--font-mono);">
+                    <thead>
+                        <tr>
+                            <th>Hora Muestra</th>
+                            <th>Potencia</th>
+                            <th>Temp. Motor</th>
+                            <th>Voltaje</th>
+                            <th>Diagnóstico</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for r in recent_readings %}
+                        <tr>
+                            <td style="color:var(--text-main);font-weight:600;">{{ r.time }}</td>
+                            <td style="color:#2563eb;font-weight:700;">{{ r.power }} W</td>
+                            <td style="color:#d97706;font-weight:600;">{{ r.motor_temp }} °C</td>
+                            <td>{{ r.voltage }} V</td>
+                            <td><span style="background:#ecfdf5;color:#047857;padding:1px 5px;border-radius:3px;font-size:0.65rem;font-weight:600;">NOMINAL</span></td>
+                        </tr>
+                        {% empty %}
+                        <tr><td colspan="5" style="text-align:center;color:var(--text-dim);padding:8px;">Sin registros térmicos disponibles</td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- FLEET PERFORMANCE COMPARISON & BSON INSPECTOR -->
+<div class="grid-2">
+    <!-- Drones Performance Matrix -->
+    <div class="hud-panel">
+        <div class="panel-header">
+            <h3 class="panel-title">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                    stroke-linecap="round" stroke-linejoin="round" style="color:var(--primary-blue);">
+                    <rect x="2" y="3" width="20" height="14" rx="2" ry="2" />
+                    <line x1="8" y1="21" x2="16" y2="21" />
+                    <line x1="12" y1="17" x2="12" y2="21" />
+                </svg>
+                Métricas de Rendimiento por Dron
+            </h3>
+            <span class="panel-badge">Evaluación de Flota</span>
+        </div>
+
+        <div style="overflow-x:auto;">
+            <table class="hud-table" style="font-size:0.8rem;">
+                <thead>
+                    <tr>
+                        <th>Drone ID</th>
+                        <th>Modelo</th>
+                        <th>Horas Totales</th>
+                        <th>Batería</th>
+                        <th>Estado</th>
+                        <th>Salud General</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for d in drones %}
+                    <tr>
+                        <td style="font-family:var(--font-mono);font-weight:700;color:var(--text-main);">
+                            {{ d.drone_id }}
+                        </td>
+                        <td>
+                            <div style="font-weight:600;color:var(--text-main);">{{ d.name }}</div>
+                            <div style="font-size:0.74rem;color:var(--text-dim);">{{ d.model }}</div>
+                        </td>
+                        <td style="font-family:var(--font-mono);color:var(--text-main);">{{ d.total_flight_hours }} hrs
+                        </td>
+                        <td>
+                            <span style="font-family:var(--font-mono);color:var(--text-main);font-weight:600;">
+                                {{ d.battery_level }}%
+                            </span>
+                        </td>
+                        <td>
+                            <span class="badge-status {{ d.status }}" style="font-size:0.68rem;">
+                                {% if d.status == 'AVAILABLE' %}Disponible
+                                {% elif d.status == 'IN_MISSION' %}En misión
+                                {% elif d.status == 'MAINTENANCE' %}Mantenimiento
+                                {% else %}{{ d.status }}{% endif %}
+                            </span>
+                        </td>
+                        <td>
+                            <span class="badge-status AVAILABLE" style="font-size:0.68rem;">
+                                {% if d.health_status == 'EXCELLENT' %}Excelente
+                                {% elif d.health_status == 'GOOD' %}Bueno
+                                {% elif d.health_status == 'INSPECTION_REQUIRED' %}Inspección
+                                {% else %}{{ d.health_status }}{% endif %}
+                            </span>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Document Inspector -->
+    <div class="hud-panel">
+        <div class="panel-header">
+            <h3 class="panel-title">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                    stroke-linecap="round" stroke-linejoin="round" style="color:var(--primary-blue);">
+                    <polyline points="16 18 22 12 16 6" />
+                    <polyline points="8 6 2 12 8 18" />
+                </svg>
+                Inspección de Registro Técnico (BSON / JSON)
+            </h3>
+            <button class="btn btn-outline btn-sm copy-bson-btn" onclick="copyBsonDocument(this)">
+                Copiar JSON
+            </button>
+        </div>
+
+        <p style="font-size:0.78rem;color:var(--text-muted);margin-bottom:0.85rem;">
+            Estructura de datos persistida para la misión <code>{{ selected_mission_id }}</code>:
+        </p>
+
+        <pre class="code-viewer" id="rawBsonViewer" style="background:#0f172a;color:#f8fafc;padding:1.15rem;border-radius:10px;font-family:var(--font-mono);font-size:0.76rem;line-height:1.55;max-height:360px;overflow:auto;border:1px solid #1e293b;white-space:pre;"><code>{{ pretty_mission_json }}</code></pre>
+    </div>
+</div>
+
+<!-- ==============================================================================
+     CONSULTAS DE AGREGACIÓN NATIVAS (ANÁLISIS OPERACIONAL)
+     ============================================================================== -->
+<section class="hud-panel" style="margin-top:1.5rem;margin-bottom:1.5rem;">
+    <div class="panel-header">
+        <div>
+            <h3 class="panel-title" style="display:flex;align-items:center;gap:0.5rem;">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                    stroke-linecap="round" stroke-linejoin="round" style="color:var(--primary-blue);">
+                    <ellipse cx="12" cy="5" rx="9" ry="3" />
+                    <path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3" />
+                    <path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5" />
+                </svg>
+                Analítica de Rendimiento Operativo y Tareas (Aggregation Pipeline)
+            </h3>
+            <p style="font-size:0.78rem;color:var(--text-muted);margin-top:0.3rem;">
+                Información analítica procesada a nivel de base de datos para evaluación de rendimiento por sector y tareas de vuelo.
+            </p>
+        </div>
+        <span class="panel-badge" style="background:var(--primary-blue-light);color:var(--primary-blue);font-weight:700;">
+            Auditoría Analítica
+        </span>
+    </div>
+
+    <div class="grid-2">
+        <!-- AGREGACIÓN 1: RENDIMIENTO POR SECTOR -->
+        <div style="background:var(--bg-card-subtle);border:1px solid var(--border-subtle);border-radius:var(--radius-sm);padding:1.15rem;">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.75rem;">
+                <div>
+                    <span style="font-size:0.68rem;font-weight:700;color:var(--primary-blue);text-transform:uppercase;letter-spacing:0.04em;">Agregación 1 • Pipeline $group</span>
+                    <h4 style="font-size:0.95rem;font-weight:700;color:var(--text-main);margin-top:2px;">Desempeño Operativo por Sector</h4>
+                </div>
+                <span class="sensor-badge" style="background:#ecfdf5;color:#065f46;">db.missions.aggregate()</span>
+            </div>
+
+            <p style="font-size:0.76rem;color:var(--text-muted);margin-bottom:0.9rem;line-height:1.5;">
+                Agrupa misiones por sector (Industrial, Agrícola, Seguridad) calculando misiones completadas, distancia media, consumo de batería y aeronaves utilizadas.
+            </p>
+
+            <div style="overflow-x:auto;">
+                <table class="hud-table" style="font-size:0.76rem;">
+                    <thead>
+                        <tr>
+                            <th>Sector</th>
+                            <th>Misiones</th>
+                            <th>Distancia Media</th>
+                            <th>Batería Media</th>
+                            <th>Duración</th>
+                            <th>Drones Únicos</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for s in sector_aggregations %}
+                        <tr>
+                            <td style="font-weight:700;color:var(--text-main);">{{ s.sector }}</td>
+                            <td>
+                                <span style="font-weight:700;color:var(--primary-blue);">{{ s.total_missions }}</span>
+                                <span style="font-size:0.68rem;color:var(--text-dim);">({{ s.completed_missions }} compl.)</span>
+                            </td>
+                            <td>{{ s.avg_distance_m }} m</td>
+                            <td><strong style="color:#0284c7;">{{ s.avg_battery_consumed_pct }}%</strong></td>
+                            <td>{{ s.avg_duration_min }} min</td>
+                            <td>{{ s.unique_drones_count }}</td>
+                        </tr>
+                        {% empty %}
+                        <tr><td colspan="6" style="text-align:center;color:var(--text-dim);">Sin datos de sectores registrados</td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+
+            <details style="margin-top:0.85rem;font-size:0.74rem;">
+                <summary style="cursor:pointer;color:var(--primary-blue);font-weight:600;padding:0.3rem 0;">Ver Pipeline BSON ($group + $project + $sort)</summary>
+                <pre style="background:#0f172a;color:#f8fafc;padding:0.75rem;border-radius:6px;font-family:var(--font-mono);font-size:0.7rem;overflow:auto;max-height:160px;margin-top:0.4rem;"><code>db.missions.aggregate([
+  {
+    $group: {
+      _id: "$sector",
+      total_missions: { $sum: 1 },
+      completed_missions: { $sum: { $cond: [{ $eq: ["$status", "COMPLETED"] }, 1, 0] } },
+      avg_distance_m: { $avg: "$total_distance_m" },
+      avg_battery_consumed_pct: { $avg: "$battery_consumed_pct" },
+      avg_duration_min: { $avg: "$estimated_duration_min" },
+      drones_used: { $addToSet: "$drone_name" }
+    }
+  },
+  {
+    $project: {
+      sector: "$_id",
+      _id: 0,
+      total_missions: 1,
+      completed_missions: 1,
+      avg_distance_m: { $round: ["$avg_distance_m", 1] },
+      avg_battery_consumed_pct: { $round: ["$avg_battery_consumed_pct", 1] },
+      avg_duration_min: { $round: ["$avg_duration_min", 1] },
+      unique_drones_count: { $size: "$drones_used" }
+    }
+  },
+  { $sort: { total_missions: -1 } }
+])</code></pre>
+            </details>
+        </div>
+
+        <!-- AGREGACIÓN 2: DEMANDA DE TAREAS DE WAYPOINTS -->
+        <div style="background:var(--bg-card-subtle);border:1px solid var(--border-subtle);border-radius:var(--radius-sm);padding:1.15rem;">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.75rem;">
+                <div>
+                    <span style="font-size:0.68rem;font-weight:700;color:var(--primary-blue);text-transform:uppercase;letter-spacing:0.04em;">Agregación 2 • Pipeline $unwind</span>
+                    <h4 style="font-size:0.95rem;font-weight:700;color:var(--text-main);margin-top:2px;">Demanda de Tareas de Waypoints (Polimorfismo)</h4>
+                </div>
+                <span class="sensor-badge" style="background:#eff6ff;color:#1e40af;">Subdocumentos Embebidos</span>
+            </div>
+
+            <p style="font-size:0.76rem;color:var(--text-muted);margin-bottom:0.9rem;line-height:1.5;">
+                Desenrolla el arreglo embebido <code>waypoints</code> con <code>$unwind</code> para contabilizar la frecuencia de tareas heterogéneas (RGB, FLIR, NDVI, LiDAR) y calcular altitudes y velocidades promedio.
+            </p>
+
+            <div style="overflow-x:auto;">
+                <table class="hud-table" style="font-size:0.76rem;">
+                    <thead>
+                        <tr>
+                            <th>Acción de Waypoint</th>
+                            <th>Ejecuciones</th>
+                            <th>Altitud Media</th>
+                            <th>Velocidad Media</th>
+                            <th>Rango Altitud</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for t in task_aggregations %}
+                        <tr>
+                            <td style="font-weight:600;color:var(--text-main);font-size:0.75rem;">
+                                {% if t.task_action == 'TAKEOFF_ASCEND' %}Despegue y Ascenso
+                                {% elif t.task_action == 'TAKEOFF' %}Despegue
+                                {% elif t.task_action == 'PHOTO_CAPTURE' %}Captura Fotográfica
+                                {% elif t.task_action == 'THERMAL_SCAN' %}Escaneo Térmico
+                                {% elif t.task_action == 'THERMAL_IRRIGATION_CHECK' %}Monitoreo Térmico de Riego
+                                {% elif t.task_action == 'HOVER_PANORAMA_360' %}Panorámica 360°
+                                {% elif t.task_action == 'MULTISPECTRAL_SCAN' %}Escaneo Multiespectral
+                                {% elif t.task_action == 'PERIMETER_SURVEILLANCE' %}Vigilancia Perimetral
+                                {% elif t.task_action == 'AI_INTRUSION_DETECTION' %}Detección IA de Intrusión
+                                {% elif t.task_action == 'RETURN_TO_HOME_LAND' %}Regreso y Aterrizaje
+                                {% elif t.task_action == 'RETURN_TO_HOME' %}Regreso a Base
+                                {% else %}{{ t.task_action }}{% endif %}
+                            </td>
+                            <td><strong style="color:var(--primary-blue);">{{ t.total_executions }}</strong> veces</td>
+                            <td>{{ t.avg_altitude_m }} m</td>
+                            <td>{{ t.avg_speed_kmh }} km/h</td>
+                            <td><span style="font-size:0.7rem;color:var(--text-dim);">{{ t.min_altitude_m }}m - {{ t.max_altitude_m }}m</span></td>
+                        </tr>
+                        {% empty %}
+                        <tr><td colspan="5" style="text-align:center;color:var(--text-dim);">Sin datos de waypoints disponibles</td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+
+            <details style="margin-top:0.85rem;font-size:0.74rem;">
+                <summary style="cursor:pointer;color:var(--primary-blue);font-weight:600;padding:0.3rem 0;">Ver Pipeline BSON ($unwind + $group + $sort)</summary>
+                <pre style="background:#0f172a;color:#f8fafc;padding:0.75rem;border-radius:6px;font-family:var(--font-mono);font-size:0.7rem;overflow:auto;max-height:160px;margin-top:0.4rem;"><code>db.missions.aggregate([
+  { $unwind: "$waypoints" },
+  {
+    $group: {
+      _id: "$waypoints.action",
+      total_executions: { $sum: 1 },
+      avg_altitude_m: { $avg: "$waypoints.alt" },
+      avg_speed_ms: { $avg: "$waypoints.speed_ms" },
+      min_altitude_m: { $min: "$waypoints.alt" },
+      max_altitude_m: { $max: "$waypoints.alt" }
+    }
+  },
+  {
+    $project: {
+      task_action: "$_id",
+      _id: 0,
+      total_executions: 1,
+      avg_altitude_m: { $round: ["$avg_altitude_m", 1] },
+      avg_speed_ms: { $round: ["$avg_speed_ms", 1] },
+      min_altitude_m: 1,
+      max_altitude_m: 1
+    }
+  },
+  { $sort: { total_executions: -1 } }
+])</code></pre>
+            </details>
+        </div>
+    </div>
+</section>
+
+<!-- Hidden JSON Data for Chart.js -->
+<script id="auditChartDataJson" type="application/json">
+{{ audit_data_json|safe }}
+</script>
+<script id="telemetriaDocJson" type="application/json">
+{{ telemetria_doc_json|safe }}
+</script>
+
+{% else %}
+<div class="hud-panel" style="text-align:center;padding:3rem;">
+    <div style="margin-bottom:0.75rem;color:var(--text-dim);">
+        <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"
+            stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="11" cy="11" r="8" />
+            <line x1="21" y1="21" x2="16.65" y2="16.65" />
+        </svg>
+    </div>
+    <h3 style="font-size:1.15rem;font-weight:700;color:var(--text-main);margin-bottom:0.4rem;">No se seleccionó una
+        misión válida</h3>
+    <p style="color:var(--text-muted);margin-bottom:1.25rem;font-size:0.86rem;">Por favor selecciona una misión del
+        listado superior para auditar su telemetría.</p>
+    <a href="{% url 'commander' %}" class="btn btn-primary">Recargar Auditoría</a>
+</div>
+{% endif %}
+
+{% endblock %}
+
+{% block extra_scripts %}
+<script src="{% static 'js/commander.js' %}?v=3.0"></script>
+<script>
+    function copyBsonDocument(btn) {
+        const code = document.getElementById('rawBsonViewer').textContent;
+        copyTextToClipboard(code, btn);
+    }
+
+    async function completeSelectedMission(missionId) {
+        if (!confirm(`¿Deseas dar por concluida y aprobada la misión ${missionId}?\nEsto actualizará su estado a COMPLETED y liberará la aeronave a disponible (AVAILABLE).`)) {
+            return;
+        }
+
+        try {
+            const res = await fetch(`/api/missions/${missionId}/complete/`, { method: 'POST' });
+            const data = await res.json();
+            if (!res.ok) throw new Error(data.error || 'Error al completar misión');
+            alert(`✓ ${data.message}`);
+            location.reload();
+        } catch (err) {
+            alert(`✕ Error: ${err.message}`);
+        }
+    }
+
+    async function deleteSelectedMission(missionId) {
+        if (!confirm(`¿ESTÁS SEGURO de eliminar permanentemente la misión ${missionId}?\nEsta acción eliminará el registro de la misión y sus lecturas de telemetría asociadas.`)) {
+            return;
+        }
+
+        try {
+            const res = await fetch(`/api/missions/${missionId}/delete/`, { method: 'POST' });
+            const data = await res.json();
+            if (!res.ok) throw new Error(data.error || 'Error al eliminar misión');
+            alert(`✓ ${data.message}`);
+            window.location.href = "{% url 'commander' %}";
+        } catch (err) {
+            alert(`✕ Error: ${err.message}`);
+        }
+    }
+</script>
+{% endblock %}

@@ -1,0 +1,581 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block content %}
+<!-- OPERATOR HUB HERO -->
+<section class="page-hero">
+    <div class="page-hero-content">
+        <h2>
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color:var(--primary-blue);">
+                <circle cx="12" cy="12" r="10"/><polygon points="16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88 16.24 7.76"/>
+            </svg>
+            Centro del Operador de Vuelo
+        </h2>
+        <p>
+            Selecciona puntos en el mapa para trazar la ruta, configura la tarea de cada tramo y monitorea el vuelo en vivo.
+        </p>
+    </div>
+    <div class="hero-actions">
+        <button id="btnSampleRoute" class="btn btn-outline btn-sm">Cargar Ruta de Ejemplo</button>
+        <button id="btnResetRoute" class="btn btn-outline btn-sm">Limpiar Mapa</button>
+    </div>
+</section>
+
+<!-- MAIN OPERATOR WORKSPACE -->
+<div class="grid-operator">
+    <!-- LEFT COLUMN: INTERACTIVE MAP & ROUTE PLANNER -->
+    <div>
+        <div class="hud-panel">
+            <div class="panel-header">
+                <h3 class="panel-title">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color:var(--primary-blue);"><circle cx="12" cy="12" r="10"/><polygon points="16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88 16.24 7.76"/></svg>
+                    Planificador Táctico de Waypoints
+                </h3>
+                <div style="display:flex;align-items:center;gap:0.6rem;">
+                    <label for="taskTypeSelect" style="font-size:0.75rem;color:var(--text-muted);white-space:nowrap;font-weight:500;">Tarea al Clic:</label>
+                    <select id="taskTypeSelect" class="form-select" style="width:auto;padding:0.35rem 0.75rem;font-size:0.78rem;">
+                        <option value="PHOTO_CAPTURE">Captura Fotográfica RGB</option>
+                        <option value="THERMAL_SCAN">Escaneo Térmico Radiométrico</option>
+                        <option value="HOVER_PANORAMA_360">Giro Panorámico 360°</option>
+                        <option value="MULTISPECTRAL_SCAN">Escaneo Multiespectral NDVI</option>
+                        <option value="PERIMETER_SURVEILLANCE">Vigilancia Perimetral IA</option>
+                        <option value="RETURN_TO_HOME_LAND">Regreso y Aterrizaje RTK</option>
+                    </select>
+                </div>
+            </div>
+
+            <!-- LEAFLET MAP -->
+            <div class="map-container" id="operatorMap">
+                <div class="map-overlay-badge">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color:var(--primary-blue);"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+                    <span>Haz clic en el mapa para situar waypoints en la ruta</span>
+                </div>
+            </div>
+
+            <!-- ROUTE SUMMARY STRIP -->
+            <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:0.85rem;margin-top:1rem;background:var(--bg-card-subtle);padding:1rem;border-radius:var(--radius-sm);border:1px solid var(--border-subtle);text-align:center;">
+                <div>
+                    <div style="font-size:0.7rem;color:var(--text-dim);font-weight:600;text-transform:uppercase;letter-spacing:0.04em;">WAYPOINTS</div>
+                    <div id="metricWpCount" style="font-size:1.35rem;font-weight:700;color:var(--text-main);margin-top:2px;">0</div>
+                </div>
+                <div>
+                    <div style="font-size:0.7rem;color:var(--text-dim);font-weight:600;text-transform:uppercase;letter-spacing:0.04em;">DISTANCIA ESTIMADA</div>
+                    <div id="metricDistance" style="font-size:1.35rem;font-weight:700;color:var(--text-main);margin-top:2px;">0 m</div>
+                </div>
+                <div>
+                    <div style="font-size:0.7rem;color:var(--text-dim);font-weight:600;text-transform:uppercase;letter-spacing:0.04em;">TIEMPO DE VUELO</div>
+                    <div id="metricEstTime" style="font-size:1.35rem;font-weight:700;color:var(--text-main);margin-top:2px;">0 min</div>
+                </div>
+                <div>
+                    <div style="font-size:0.7rem;color:var(--text-dim);font-weight:600;text-transform:uppercase;letter-spacing:0.04em;">CONSUMO BATERÍA</div>
+                    <div id="metricEstBattery" style="font-size:1.35rem;font-weight:700;color:var(--text-main);margin-top:2px;">~0%</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- LIVE FLIGHT HUD & INSTRUMENT CONSOLE -->
+        <div class="hud-panel" style="margin-top:1.25rem;">
+            <div class="panel-header">
+                <div style="display:flex;align-items:center;gap:0.75rem;">
+                    <h3 class="panel-title">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color:var(--primary-blue);"><circle cx="12" cy="12" r="10"/><path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20"/><path d="M2 12h20"/></svg>
+                        Cabina de Instrumentos HUD
+                    </h3>
+                    <span id="hudCurrentAction" class="badge-status AVAILABLE">
+                        LISTO EN TIERRA
+                    </span>
+                </div>
+
+                <!-- Simulation Controls -->
+                <div style="display:flex;align-items:center;gap:0.5rem;">
+                    <button id="btnStartSimulation" class="btn btn-primary btn-sm">
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+                        Iniciar Vuelo
+                    </button>
+                    <button id="btnPauseSimulation" class="btn btn-outline btn-sm">
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>
+                        Pausar
+                    </button>
+                    <button id="btnStepSimulation" class="btn btn-outline btn-sm" title="Avanzar 1 ráfaga">
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 4 15 12 5 20 5 4"/><line x1="19" y1="5" x2="19" y2="19" stroke="currentColor" stroke-width="2"/></svg>
+                        1 Tick
+                    </button>
+                </div>
+            </div>
+
+            <!-- GAUGES -->
+            <div class="hud-cockpit">
+                <!-- Artificial Horizon / Gyro -->
+                <div class="hud-gauge">
+                    <div class="hud-gauge-label">
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/></svg>
+                        Giroscopio
+                    </div>
+                    <div class="attitude-indicator-box" id="attitudeGyro">
+                        <div class="attitude-crosshair"></div>
+                    </div>
+                    <div style="font-size:0.72rem;color:var(--text-dim);font-weight:500;">Horizonte Artificial</div>
+                </div>
+
+                <!-- Ground Speed -->
+                <div class="hud-gauge">
+                    <div class="hud-gauge-label">
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+                        Velocidad
+                    </div>
+                    <div class="hud-gauge-value">
+                        <span id="hudSpeedVal">0.0</span><span class="hud-gauge-unit">km/h</span>
+                    </div>
+                    <div class="gauge-bar-wrapper">
+                        <div class="gauge-bar-fill" style="width:35%;"></div>
+                    </div>
+                    <div style="font-size:0.72rem;color:var(--text-dim);margin-top:0.4rem;">GPS: 19 Satélites</div>
+                </div>
+
+                <!-- Altimeter -->
+                <div class="hud-gauge">
+                    <div class="hud-gauge-label">
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+                        Altitud
+                    </div>
+                    <div class="hud-gauge-value">
+                        <span id="hudAltVal">0.0</span><span class="hud-gauge-unit">m</span>
+                    </div>
+                    <div class="gauge-bar-wrapper">
+                        <div class="gauge-bar-fill" style="width:50%;"></div>
+                    </div>
+                    <div style="font-size:0.72rem;color:var(--text-dim);margin-top:0.4rem;">Barómetro RTK</div>
+                </div>
+
+                <!-- Battery -->
+                <div class="hud-gauge">
+                    <div class="hud-gauge-label">
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="1" y="6" width="18" height="12" rx="2"/><line x1="23" y1="11" x2="23" y2="13"/></svg>
+                        Batería
+                    </div>
+                    <div class="hud-gauge-value">
+                        <span id="hudBatteryVal">95</span><span class="hud-gauge-unit">%</span>
+                    </div>
+                    <div class="gauge-bar-wrapper">
+                        <div id="hudBatteryBar" class="gauge-bar-fill" style="width:95%;"></div>
+                    </div>
+                    <div style="font-size:0.72rem;color:var(--text-dim);margin-top:0.4rem;">
+                        Temp: <span id="hudTempVal" style="color:var(--text-main);font-weight:600;">32</span>°C
+                    </div>
+                </div>
+            </div>
+
+            <!-- LIVE TELEMETRY BURST TABLE -->
+            <div style="overflow-x:auto;">
+                <div style="font-size:0.74rem;color:var(--text-dim);font-weight:600;margin-bottom:0.5rem;letter-spacing:0.02em;">
+                    Ráfagas de Telemetría en Tiempo Real:
+                </div>
+                <table class="hud-table" style="font-size:0.78rem;">
+                    <thead>
+                        <tr>
+                            <th>Timestamp</th>
+                            <th>Tarea Actual</th>
+                            <th>Coordenadas GPS</th>
+                            <th>Altitud</th>
+                            <th>Velocidad</th>
+                            <th>Batería</th>
+                            <th>Temp Motor</th>
+                        </tr>
+                    </thead>
+                    <tbody id="liveTelemetryTableBody">
+                        <tr>
+                            <td colspan="7" style="text-align:center;color:var(--text-dim);padding:1.5rem;">
+                                Inicia el vuelo para observar las ráfagas de telemetría transmitidas en tiempo real.
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- RIGHT COLUMN: HETEROGENEOUS WAYPOINT CONFIG & MISSION BUILDER -->
+    <div>
+        <!-- SAVE MISSION PANEL -->
+        <div class="hud-panel" style="margin-bottom:1.25rem;">
+            <div class="panel-header">
+                <h3 class="panel-title">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color:var(--primary-blue);"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+                    Programar Misión
+                </h3>
+                <span class="panel-badge">Nueva Ruta</span>
+            </div>
+
+            <div class="form-group">
+                <label class="form-label" for="inputMissionName">Nombre de la Misión</label>
+                <input type="text" id="inputMissionName" class="form-control" value="Inspección Termográfica Línea 110kV" placeholder="Ej: Escaneo Agrícola Cuadrante Norte">
+            </div>
+
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.85rem;">
+                <div class="form-group">
+                    <label class="form-label" for="selectSector">Sector de Operación</label>
+                    <select id="selectSector" class="form-select">
+                        <option value="Industrial">Industrial</option>
+                        <option value="Agrícola">Agrícola</option>
+                        <option value="Seguridad">Seguridad</option>
+                        <option value="Infraestructura">Infraestructura Crítica</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label class="form-label" for="selectDrone">Drone Asignado</label>
+                    <select id="selectDrone" class="form-select">
+                        {% for d in drones %}
+                        <option value="{{ d.drone_id }}">
+                            {{ d.name }} ({{ d.battery_level }}% bat)
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
+
+            <button id="btnSaveMission" class="btn btn-primary" style="width:100%;margin-top:0.4rem;">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+                Guardar y Programar Misión
+            </button>
+        </div>
+
+        <!-- MISSION SELECTOR FOR SIMULATION -->
+        <div class="hud-panel" style="margin-bottom:1.25rem;">
+            <div class="panel-header">
+                <h3 class="panel-title">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color:var(--primary-blue);"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><rect x="8" y="2" width="8" height="4" rx="1" ry="1"/></svg>
+                    Cargar Misión Existente
+                </h3>
+            </div>
+            <div class="form-group" style="margin-bottom:0;">
+                <select id="activeMissionSelect" class="form-select">
+                    {% for m in missions %}
+                    <option value="{{ m.mission_id }}" {% if forloop.first %}selected{% endif %}>
+                        {{ m.mission_id }} — {{ m.name }} ({% if m.status == 'COMPLETED' %}Completada{% elif m.status == 'IN_PROGRESS' %}En curso{% elif m.status == 'PLANNED' %}Planificada{% elif m.status == 'ABORTED' %}Abortada{% elif m.status == 'AVAILABLE' %}Disponible{% else %}{{ m.status }}{% endif %})
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+        </div>
+
+        <!-- HETEROGENEOUS WAYPOINTS TIMELINE -->
+        <div class="hud-panel">
+            <div class="panel-header">
+                <h3 class="panel-title">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color:var(--primary-blue);"><polygon points="12 2 2 7 12 12 22 7 12 2"></polygon><polyline points="2 17 12 22 22 17"></polyline><polyline points="2 12 12 17 22 12"></polyline></svg>
+                    Waypoints y Tareas de la Ruta
+                </h3>
+                <span class="panel-badge">Parámetros Dinámicos</span>
+            </div>
+
+            <p style="font-size:0.78rem;color:var(--text-muted);margin-bottom:0.85rem;line-height:1.5;">
+                Cada punto de navegación almacena los parámetros específicos configurados para su sensor o maniobra:
+            </p>
+
+            <div class="wp-timeline" id="waypointsTimeline">
+                <!-- Injected dynamically by operator.js -->
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- MODAL RESUMEN DE MISIÓN COMPLETADA -->
+<div id="missionSummaryModal" class="modal-backdrop" style="display:none;">
+    <div class="modal-dialog" style="max-width:620px;">
+        <div class="modal-header">
+            <div style="display:flex;align-items:center;gap:0.75rem;">
+                <div style="width:40px;height:40px;border-radius:50%;background:#ecfdf5;display:flex;align-items:center;justify-content:center;color:#059669;flex-shrink:0;">
+                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                        <polyline points="20 6 9 17 4 12"></polyline>
+                    </svg>
+                </div>
+                <div>
+                    <h3 style="font-size:1.15rem;font-weight:700;color:var(--text-main);margin:0;">Misión Completada con Éxito</h3>
+                    <p id="modalMissionSubtitle" style="font-size:0.78rem;color:var(--text-muted);margin:2px 0 0 0;">
+                        Misión: <strong id="modalMissionName" style="color:var(--text-main);">Inspección Industrial</strong> • Drone: <span id="modalDroneName">DJI Matrice 350</span>
+                    </p>
+                </div>
+            </div>
+            <button type="button" class="modal-close" onclick="closeMissionSummaryModal()">&times;</button>
+        </div>
+
+        <div class="modal-body">
+            <!-- CUADRÍCULA DE 4 MINI-TARJETAS DE MÉTRICAS -->
+            <div style="display:grid;grid-template-columns:repeat(2, 1fr);gap:0.75rem;margin-bottom:1.2rem;">
+                <!-- Distancia Recorrida -->
+                <div style="background:var(--bg-card-subtle);padding:0.9rem 1rem;border-radius:var(--radius-sm);border:1px solid var(--border-subtle);">
+                    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.25rem;">
+                        <span style="font-size:0.7rem;color:var(--text-dim);font-weight:600;text-transform:uppercase;letter-spacing:0.03em;">Distancia Recorrida</span>
+                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="color:#0284c7;"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+                    </div>
+                    <div id="modalMetricDistance" style="font-size:1.3rem;font-weight:700;color:var(--text-main);margin-top:2px;">0 m</div>
+                    <div style="font-size:0.72rem;color:var(--text-muted);margin-top:2px;">Ruta total completada</div>
+                </div>
+
+                <!-- Duración del Vuelo -->
+                <div style="background:var(--bg-card-subtle);padding:0.9rem 1rem;border-radius:var(--radius-sm);border:1px solid var(--border-subtle);">
+                    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.25rem;">
+                        <span style="font-size:0.7rem;color:var(--text-dim);font-weight:600;text-transform:uppercase;letter-spacing:0.03em;">Duración del Vuelo</span>
+                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="color:#059669;"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                    </div>
+                    <div id="modalMetricDuration" style="font-size:1.3rem;font-weight:700;color:var(--text-main);margin-top:2px;">0 min</div>
+                    <div style="font-size:0.72rem;color:var(--text-muted);margin-top:2px;">Tiempo de operación</div>
+                </div>
+
+                <!-- Batería Consumida -->
+                <div style="background:var(--bg-card-subtle);padding:0.9rem 1rem;border-radius:var(--radius-sm);border:1px solid var(--border-subtle);">
+                    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.25rem;">
+                        <span style="font-size:0.7rem;color:var(--text-dim);font-weight:600;text-transform:uppercase;letter-spacing:0.03em;">Batería Consumida</span>
+                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="color:#d97706;"><rect x="1" y="6" width="18" height="12" rx="2"/><line x1="23" y1="11" x2="23" y2="13"/></svg>
+                    </div>
+                    <div id="modalMetricBattery" style="font-size:1.3rem;font-weight:700;color:#0284c7;margin-top:2px;">-0%</div>
+                    <div id="modalMetricBatteryFinal" style="font-size:0.72rem;color:var(--text-muted);margin-top:2px;">Batería restante: 100%</div>
+                </div>
+
+                <!-- Waypoints Completados -->
+                <div style="background:var(--bg-card-subtle);padding:0.9rem 1rem;border-radius:var(--radius-sm);border:1px solid var(--border-subtle);">
+                    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.25rem;">
+                        <span style="font-size:0.7rem;color:var(--text-dim);font-weight:600;text-transform:uppercase;letter-spacing:0.03em;">Waypoints Completados</span>
+                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="color:var(--primary-blue);"><polygon points="12 2 2 7 12 12 22 7 12 2"></polygon><polyline points="2 17 12 22 22 17"></polyline><polyline points="2 12 12 17 22 12"></polyline></svg>
+                    </div>
+                    <div id="modalMetricWaypoints" style="font-size:1.3rem;font-weight:700;color:var(--text-main);margin-top:2px;">0 de 0 puntos</div>
+                    <div style="font-size:0.72rem;color:#059669;font-weight:600;margin-top:2px;">100% navegación exitosa</div>
+                </div>
+            </div>
+
+            <!-- SECCIÓN: LOGROS Y TAREAS EJECUTADAS -->
+            <div style="background:var(--bg-card-subtle);border:1px solid var(--border-subtle);border-radius:var(--radius-sm);padding:1rem;margin-bottom:0.5rem;">
+                <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.6rem;">
+                    <span style="font-size:0.76rem;font-weight:700;color:var(--text-main);text-transform:uppercase;letter-spacing:0.03em;">Logros y Tareas Ejecutadas</span>
+                    <span class="badge-status COMPLETED" style="font-size:0.68rem;">Completadas</span>
+                </div>
+                <div id="modalExecutedTasksList" style="display:flex;flex-wrap:wrap;gap:0.4rem;margin-bottom:0.85rem;">
+                    <!-- Se inyecta dinámicamente -->
+                </div>
+                <div style="display:flex;align-items:center;gap:0.5rem;padding:0.6rem 0.8rem;background:#ecfdf5;border-radius:4px;border:1px solid #a7f3d0;color:#065f46;font-size:0.75rem;">
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;">
+                        <polyline points="20 6 9 17 4 12"></polyline>
+                    </svg>
+                    <span><strong>Telemetría Sincronizada:</strong> Ráfagas de vuelo y registro maestro almacenados en la base de datos MongoDB.</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="modal-footer">
+            <button type="button" class="btn btn-outline" onclick="closeMissionSummaryModal()">Cerrar</button>
+            <a id="btnModalAuditar" href="{% url 'commander' %}" class="btn btn-primary" style="background:#0f172a;border-color:#0f172a;display:inline-flex;align-items:center;gap:0.45rem;">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+                Ver Auditoría de Vuelo
+            </a>
+        </div>
+    </div>
+</div>
+
+<style>
+.modal-backdrop {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background: rgba(15, 23, 42, 0.65);
+    backdrop-filter: blur(4px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 9999;
+    padding: 1rem;
+}
+.modal-dialog {
+    background: #ffffff;
+    border-radius: 8px;
+    border: 1px solid var(--border-subtle);
+    box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.25), 0 10px 10px -5px rgba(0, 0, 0, 0.1);
+    max-width: 620px;
+    width: 100%;
+    max-height: 90vh;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    animation: modalSlideDown 0.2s ease-out;
+}
+@keyframes modalSlideDown {
+    from { transform: translateY(-20px); opacity: 0; }
+    to { transform: translateY(0); opacity: 1; }
+}
+.modal-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 1.1rem 1.4rem;
+    border-bottom: 1px solid var(--border-subtle);
+    background: var(--bg-card-subtle);
+}
+.modal-close {
+    background: transparent;
+    border: none;
+    font-size: 1.5rem;
+    color: var(--text-dim);
+    cursor: pointer;
+    line-height: 1;
+    padding: 0.2rem 0.5rem;
+    border-radius: 4px;
+}
+.modal-close:hover {
+    color: var(--text-main);
+    background: var(--border-subtle);
+}
+.modal-body {
+    padding: 1.3rem 1.4rem;
+    overflow-y: auto;
+}
+.modal-footer {
+    display: flex;
+    justify-content: flex-end;
+    gap: 0.75rem;
+    padding: 1rem 1.4rem;
+    border-top: 1px solid var(--border-subtle);
+    background: var(--bg-card-subtle);
+}
+</style>
+{% endblock %}
+
+{% block extra_scripts %}
+<script src="{% static 'js/operator.js' %}?v=2.5"></script>
+<script>
+// Diccionario completo de traducción de tareas y maniobras
+function getActionLabel(action) {
+    if (!action) return 'Punto de Ruta';
+    const actionLabels = {
+        'TAKEOFF_ASCEND': 'Despegue y Ascenso',
+        'TAKEOFF': 'Despegue Inicial',
+        'ASCEND': 'Ascenso Táctico',
+        'PHOTO_CAPTURE': 'Captura Fotográfica',
+        'THERMAL_SCAN': 'Escaneo Térmico',
+        'THERMAL_IRRIGATION_CHECK': 'Monitoreo Térmico de Riego',
+        'HOVER_PANORAMA_360': 'Panorámica 360°',
+        'HOVER': 'Vuelo Estacionario',
+        'PANORAMA': 'Giro Panorámico',
+        'MULTISPECTRAL_SCAN': 'Escaneo Multiespectral',
+        'PERIMETER_SURVEILLANCE': 'Vigilancia Perimetral',
+        'AI_INTRUSION_DETECTION': 'Detección IA de Intrusión',
+        'RETURN_TO_HOME_LAND': 'Regreso y Aterrizaje',
+        'RETURN_TO_HOME': 'Regreso a Base',
+        'LANDING': 'Aterrizaje',
+        'LAND': 'Aterrizaje',
+        'WAYPOINT_NAV': 'Navegación de Ruta',
+        'WAYPOINT': 'Punto de Ruta'
+    };
+    if (actionLabels[action]) return actionLabels[action];
+    return action
+        .toLowerCase()
+        .replace(/_/g, ' ')
+        .replace(/\b\w/g, l => l.toUpperCase());
+}
+
+// Modal Resumen de Misión Completada
+function showMissionSummaryModal(packet) {
+    const modal = document.getElementById('missionSummaryModal');
+    if (!modal) return;
+
+    // Nombre de misión y dron asignado
+    const sel = document.getElementById('activeMissionSelect');
+    let missionText = (typeof activeMissionId !== 'undefined' ? activeMissionId : 'Misión Táctica');
+    if (sel && sel.selectedIndex >= 0) {
+        missionText = sel.options[sel.selectedIndex].text.split('(')[0].trim();
+    }
+    const droneSel = document.getElementById('selectDrone');
+    let droneName = 'Aeronave Asignada';
+    if (droneSel && droneSel.selectedIndex >= 0) {
+        droneName = droneSel.options[droneSel.selectedIndex].text.split('(')[0].trim();
+    }
+
+    const nameEl = document.getElementById('modalMissionName');
+    if (nameEl) nameEl.textContent = missionText;
+
+    const droneEl = document.getElementById('modalDroneName');
+    if (droneEl) droneEl.textContent = droneName;
+
+    // Métricas
+    const distText = document.getElementById('metricDistance') ? document.getElementById('metricDistance').textContent : '0 m';
+    const timeText = document.getElementById('metricEstTime') ? document.getElementById('metricEstTime').textContent : '0 min';
+    const wpCount = (typeof plannedWaypoints !== 'undefined' && plannedWaypoints.length) ? plannedWaypoints.length : (document.getElementById('metricWpCount') ? document.getElementById('metricWpCount').textContent : '0');
+
+    const modalDist = document.getElementById('modalMetricDistance');
+    if (modalDist) modalDist.textContent = distText;
+
+    const modalDuration = document.getElementById('modalMetricDuration');
+    if (modalDuration) modalDuration.textContent = timeText;
+
+    const modalWp = document.getElementById('modalMetricWaypoints');
+    if (modalWp) modalWp.textContent = `${wpCount} de ${wpCount} puntos`;
+
+    // Batería
+    let finalBatt = 92;
+    if (packet && packet.power && typeof packet.power.battery_pct === 'number') {
+        finalBatt = packet.power.battery_pct;
+    } else {
+        const hudBatt = document.getElementById('hudBatteryVal');
+        if (hudBatt) finalBatt = parseInt(hudBatt.textContent) || 92;
+    }
+    const consumedBatt = Math.max(1, 100 - finalBatt);
+    const modalBattery = document.getElementById('modalMetricBattery');
+    if (modalBattery) modalBattery.textContent = `-${consumedBatt}%`;
+
+    const modalBatteryFinal = document.getElementById('modalMetricBatteryFinal');
+    if (modalBatteryFinal) modalBatteryFinal.textContent = `Batería restante: ${finalBatt}%`;
+
+    // Lista de Logros y Tareas Ejecutadas
+    const tasksContainer = document.getElementById('modalExecutedTasksList');
+    if (tasksContainer) {
+        tasksContainer.innerHTML = '';
+        const taskTypesFound = new Set();
+        if (typeof plannedWaypoints !== 'undefined' && plannedWaypoints.length > 0) {
+            plannedWaypoints.forEach(w => {
+                if (w.action) taskTypesFound.add(w.action);
+            });
+        }
+        if (taskTypesFound.size === 0) {
+            tasksContainer.innerHTML = '<span class="sensor-badge" style="padding:0.3rem 0.65rem;font-weight:600;">✓ Navegación Táctica de Waypoints</span>';
+        } else {
+            taskTypesFound.forEach(act => {
+                const label = (typeof getActionLabel === 'function') ? getActionLabel(act) : act;
+                const badge = document.createElement('span');
+                badge.className = 'sensor-badge';
+                badge.style.display = 'inline-flex';
+                badge.style.alignItems = 'center';
+                badge.style.gap = '0.35rem';
+                badge.style.padding = '0.3rem 0.65rem';
+                badge.style.fontSize = '0.74rem';
+                badge.style.fontWeight = '600';
+                badge.innerHTML = `✓ ${label}`;
+                tasksContainer.appendChild(badge);
+            });
+        }
+    }
+
+    // Redirección a commander con la misión completada
+    const btnAuditar = document.getElementById('btnModalAuditar');
+    if (btnAuditar && typeof activeMissionId !== 'undefined' && activeMissionId) {
+        btnAuditar.href = `{% url 'commander' %}?mission_id=${encodeURIComponent(activeMissionId)}`;
+    }
+
+    modal.style.display = 'flex';
+}
+
+function closeMissionSummaryModal() {
+    const modal = document.getElementById('missionSummaryModal');
+    if (modal) modal.style.display = 'none';
+}
+
+// Cerrar al hacer clic en el backdrop
+document.addEventListener('DOMContentLoaded', () => {
+    const modal = document.getElementById('missionSummaryModal');
+    if (modal) {
+        modal.addEventListener('click', (e) => {
+            if (e.target === modal) closeMissionSummaryModal();
+        });
+    }
+});
+</script>
+{% endblock %}

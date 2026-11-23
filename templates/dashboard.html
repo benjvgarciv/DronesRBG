@@ -1,0 +1,650 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block content %}
+<!-- HEADER RESUMEN EJECUTIVO -->
+<section class="page-hero">
+    <div class="page-hero-content">
+        <h2>
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color:var(--primary-blue);">
+                <circle cx="12" cy="12" r="10"/>
+                <polygon points="16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88 16.24 7.76"/>
+            </svg>
+            Centro de Control de Operaciones UAV
+        </h2>
+        <p>
+            Plataforma de comando táctico para supervisión de flotas, planificación de rutas de vuelo y telemetría en tiempo real.
+        </p>
+    </div>
+    <div class="hero-actions">
+        <a href="{% url 'operator' %}" class="btn btn-primary">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polygon points="16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88 16.24 7.76"/></svg>
+            Planificador de Rutas
+        </a>
+        <a href="{% url 'commander' %}" class="btn btn-outline">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+            Auditoría de Vuelo
+        </a>
+    </div>
+</section>
+
+<!-- KPI METRIC CARDS -->
+<section class="kpi-grid">
+    <div class="kpi-card">
+        <div class="kpi-header">
+            <span class="kpi-title">Flota de Drones</span>
+            <span class="kpi-icon">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="7" width="20" height="14" rx="2" ry="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg>
+            </span>
+        </div>
+        <div class="kpi-value">{{ summary.total_drones }}</div>
+        <div class="kpi-subtext">
+            <span><strong style="color:var(--text-main);">{{ summary.available_drones }}</strong> disponibles</span> • 
+            <span><strong style="color:#0284c7;">{{ summary.in_mission_drones }}</strong> en vuelo</span>
+        </div>
+    </div>
+
+    <div class="kpi-card">
+        <div class="kpi-header">
+            <span class="kpi-title">Misiones Registradas</span>
+            <span class="kpi-icon">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+            </span>
+        </div>
+        <div class="kpi-value">{{ summary.total_missions }}</div>
+        <div class="kpi-subtext">
+            <span><strong style="color:var(--text-main);">{{ summary.completed_missions }}</strong> completadas</span> • 
+            <span><strong style="color:#0284c7;">{{ summary.active_missions }}</strong> activas</span>
+        </div>
+    </div>
+
+    <div class="kpi-card">
+        <div class="kpi-header">
+            <span class="kpi-title">Ráfagas de Telemetría</span>
+            <span class="kpi-icon">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+            </span>
+        </div>
+        <div class="kpi-value">{{ summary.telemetry_count }}</div>
+        <div class="kpi-subtext">
+            <span>Lecturas en serie temporal</span>
+        </div>
+    </div>
+
+    <div class="kpi-card">
+        <div class="kpi-header">
+            <span class="kpi-title">Horas Acumuladas</span>
+            <span class="kpi-icon">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+            </span>
+        </div>
+        <div class="kpi-value">{{ summary.total_flight_hours }} <span style="font-size:1rem;color:var(--text-dim);font-weight:500;">hrs</span></div>
+        <div class="kpi-subtext">
+            <span>Batería promedio: <strong>{{ summary.avg_battery }}%</strong></span>
+        </div>
+    </div>
+</section>
+
+<!-- SECCIÓN TÉCNICA: RESUMEN OPERACIONAL Y BASE DE DATOS -->
+<div class="grid-2">
+    <!-- Resumen Operacional de la Flota -->
+    <div class="hud-panel">
+        <div class="panel-header">
+            <h3 class="panel-title">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color:var(--primary-blue);"><circle cx="12" cy="12" r="10"/><path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20"/><path d="M2 12h20"/></svg>
+                Resumen Operacional de la Flota
+            </h3>
+            <span class="panel-badge">Telemetría 10 Hz</span>
+        </div>
+
+        <p style="color:var(--text-muted);font-size:0.86rem;margin-bottom:1.25rem;line-height:1.6;">
+            El Centro de Control coordina y supervisa misiones automatizadas en sectores <strong>industrial, agrícola y de seguridad</strong>, garantizando alta disponibilidad y telemetría en tiempo real.
+        </p>
+
+        <div style="display:grid;grid-template-columns:repeat(3, 1fr);gap:0.75rem;margin-bottom:1.25rem;">
+            <div style="background:var(--bg-card-subtle);padding:0.9rem 1rem;border-radius:var(--radius-sm);border:1px solid var(--border-subtle);">
+                <div style="font-size:0.68rem;color:var(--text-dim);font-weight:600;text-transform:uppercase;">Sectores Activos</div>
+                <div style="font-size:0.92rem;font-weight:700;color:var(--text-main);margin-top:2px;">Industrial / Agro / Seguridad</div>
+            </div>
+            <div style="background:var(--bg-card-subtle);padding:0.9rem 1rem;border-radius:var(--radius-sm);border:1px solid var(--border-subtle);">
+                <div style="font-size:0.68rem;color:var(--text-dim);font-weight:600;text-transform:uppercase;">Disponibilidad</div>
+                <div style="font-size:0.92rem;font-weight:700;color:var(--text-main);margin-top:2px;">{{ summary.available_drones }} / {{ summary.total_drones }} Aeronaves</div>
+            </div>
+            <div style="background:var(--bg-card-subtle);padding:0.9rem 1rem;border-radius:var(--radius-sm);border:1px solid var(--border-subtle);">
+                <div style="font-size:0.68rem;color:var(--text-dim);font-weight:600;text-transform:uppercase;">Estado Sensores</div>
+                <div style="font-size:0.92rem;font-weight:700;color:var(--text-main);margin-top:2px;">Operativos (100%)</div>
+            </div>
+        </div>
+
+        <div style="display:flex;gap:0.6rem;">
+            <a href="{% url 'operator' %}" class="btn btn-primary btn-sm">Diseñar Misión</a>
+            <a href="{% url 'architecture' %}" class="btn btn-outline btn-sm">Fundamento Técnico NoSQL</a>
+        </div>
+    </div>
+
+    <!-- MongoDB Connection & System Diagnostics -->
+    <div class="hud-panel">
+        <div class="panel-header">
+            <h3 class="panel-title">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color:var(--primary-blue);"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/></svg>
+                Diagnóstico del Servidor MongoDB
+            </h3>
+            <span class="panel-badge">{{ db_status.engine }}</span>
+        </div>
+
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.75rem;margin-bottom:1rem;">
+            <div style="background:var(--bg-card-subtle);padding:0.9rem 1rem;border-radius:var(--radius-sm);border:1px solid var(--border-subtle);">
+                <div style="font-size:0.68rem;color:var(--text-dim);font-weight:600;text-transform:uppercase;">Base de Datos</div>
+                <div style="font-size:1rem;font-weight:700;color:var(--text-main);margin-top:2px;">{{ db_status.database }}</div>
+                <div style="font-size:0.72rem;color:var(--text-muted);margin-top:2px;">3 colecciones activas</div>
+            </div>
+
+            <div style="background:var(--bg-card-subtle);padding:0.9rem 1rem;border-radius:var(--radius-sm);border:1px solid var(--border-subtle);">
+                <div style="font-size:0.68rem;color:var(--text-dim);font-weight:600;text-transform:uppercase;">Estado Conexión</div>
+                <div style="font-size:1rem;font-weight:700;color:var(--text-main);margin-top:2px;">
+                    {{ db_status.status }}
+                </div>
+                <div style="font-size:0.72rem;color:var(--text-muted);margin-top:2px;">Driver PyMongo Nativo</div>
+            </div>
+        </div>
+
+        <div style="background:#0f172a;padding:0.9rem 1.1rem;border-radius:var(--radius-sm);font-family:var(--font-mono);font-size:0.75rem;margin-bottom:1rem;border-left:3px solid #0284c7;color:#f8fafc;line-height:1.7;">
+            <div>• db.drones: <strong style="color:#38bdf8;">{{ db_status.counts.drones }} aeronaves</strong></div>
+            <div>• db.missions: <strong style="color:#38bdf8;">{{ db_status.counts.missions }} misiones</strong> (relación 1:N)</div>
+            <div>• db.telemetria_misiones: <strong style="color:#38bdf8;">{{ db_status.counts.telemetria_misiones }} registros maestros 1:1</strong></div>
+            <div>• db.telemetry: <strong style="color:#38bdf8;">{{ db_status.counts.telemetry }} ráfagas de telemetría</strong></div>
+        </div>
+
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:0.75rem;flex-wrap:wrap;">
+            <button id="btnReloadSeed" class="btn btn-outline btn-sm" onclick="resetDatabaseSeed()">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/></svg>
+                Poblar Datos de Prueba
+            </button>
+            <span style="font-size:0.72rem;color:var(--text-dim);font-family:var(--font-mono);">URI: mongodb+srv://benjamingarcia_db_user:******@cluster0.el97dkl.mongodb.net/drones_rbg</span>
+        </div>
+    </div>
+</div>
+
+<!-- FLEET STATUS TABLE -->
+<section class="hud-panel" style="margin-bottom:1.5rem;">
+    <div class="panel-header">
+        <h3 class="panel-title">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color:var(--primary-blue);"><rect x="2" y="7" width="20" height="14" rx="2" ry="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg>
+            Estado de la Flota de Drones
+        </h3>
+        <div style="display:flex;align-items:center;gap:0.75rem;">
+            <span class="panel-badge">{{ summary.total_drones }} Aeronaves Registradas</span>
+            <button class="btn btn-primary btn-sm" onclick="openNewDroneModal()" style="display:inline-flex;align-items:center;gap:0.4rem;">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <line x1="12" y1="5" x2="12" y2="19"></line>
+                    <line x1="5" y1="12" x2="19" y2="12"></line>
+                </svg>
+                + Registrar Nueva Aeronave
+            </button>
+        </div>
+    </div>
+
+    <div style="overflow-x:auto;">
+        <table class="hud-table">
+            <thead>
+                <tr>
+                    <th>Identificador</th>
+                    <th>Modelo Industrial</th>
+                    <th>Estado Operativo</th>
+                    <th>Nivel Batería</th>
+                    <th>Operador Asignado</th>
+                    <th>Horas Vuelo</th>
+                    <th>Cargas Útiles / Sensores</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for drone in summary.drones %}
+                <tr>
+                    <td style="font-family:var(--font-mono);font-weight:700;color:var(--text-main);">
+                        {{ drone.drone_id }}
+                    </td>
+                    <td>
+                        <div style="font-weight:600;color:var(--text-main);">{{ drone.name }}</div>
+                        <div style="font-size:0.74rem;color:var(--text-dim);">{{ drone.model }}</div>
+                    </td>
+                    <td>
+                        <span class="badge-status {{ drone.status }}">
+                            {% if drone.status == 'AVAILABLE' %}Disponible
+                            {% elif drone.status == 'IN_MISSION' %}En misión
+                            {% elif drone.status == 'MAINTENANCE' %}En mantenimiento
+                            {% else %}{{ drone.status }}{% endif %}
+                        </span>
+                    </td>
+                    <td>
+                        <div style="display:flex;align-items:center;gap:0.6rem;">
+                            <div style="width:60px;height:6px;background:#e2e8f0;border-radius:var(--radius-full);overflow:hidden;">
+                                <div style="width:{{ drone.battery_level }}%;height:100%;background:#0284c7;border-radius:var(--radius-full);"></div>
+                            </div>
+                            <span style="font-family:var(--font-mono);font-weight:600;font-size:0.78rem;color:var(--text-main);">{{ drone.battery_level }}%</span>
+                        </div>
+                    </td>
+                    <td>
+                        <span style="color:var(--text-main);font-weight:500;">{{ drone.operator_assigned }}</span>
+                    </td>
+                    <td style="font-family:var(--font-mono);color:var(--text-main);">
+                        {{ drone.total_flight_hours }} hrs
+                    </td>
+                    <td>
+                        <div style="display:flex;flex-wrap:wrap;gap:0.35rem;">
+                            {% for p in drone.payload_types %}
+                            <span class="sensor-badge">
+                                {{ p }}
+                            </span>
+                            {% endfor %}
+                        </div>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</section>
+
+<!-- RECENT MISSIONS SECTION -->
+<section class="hud-panel">
+    <div class="panel-header">
+        <h3 class="panel-title">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color:var(--primary-blue);"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+            Historial de Misiones Recientes
+        </h3>
+        <a href="{% url 'commander' %}" class="btn btn-outline btn-sm">Ver Auditoría Completa →</a>
+    </div>
+
+    <div style="overflow-x:auto;">
+        <table class="hud-table">
+            <thead>
+                <tr>
+                    <th>ID Misión</th>
+                    <th>Nombre de Operación</th>
+                    <th>Sector</th>
+                    <th>Drone Asignado</th>
+                    <th>Waypoints</th>
+                    <th>Estado</th>
+                    <th>Acción</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for m in summary.recent_missions %}
+                <tr>
+                    <td style="font-family:var(--font-mono);font-weight:700;color:var(--text-main);">
+                        {{ m.mission_id }}
+                    </td>
+                    <td>
+                        <div style="font-weight:600;color:var(--text-main);">{{ m.name }}</div>
+                        <div style="font-size:0.74rem;color:var(--text-dim);">Creada por: {{ m.created_by }}</div>
+                    </td>
+                    <td>
+                        <span class="panel-badge">{{ m.sector }}</span>
+                    </td>
+                    <td>
+                        <div style="font-family:var(--font-mono);font-size:0.8rem;font-weight:600;color:var(--text-main);">{{ m.assigned_drone_id }}</div>
+                        <div style="font-size:0.74rem;color:var(--text-dim);">{{ m.drone_name }}</div>
+                    </td>
+                    <td style="font-family:var(--font-mono);color:var(--text-main);">
+                        {{ m.total_waypoints }} pts
+                    </td>
+                    <td>
+                        <span class="badge-status {{ m.status }}">
+                            {% if m.status == 'COMPLETED' %}Completada
+                            {% elif m.status == 'IN_PROGRESS' %}En curso
+                            {% elif m.status == 'PLANNED' %}Planificada
+                            {% elif m.status == 'ABORTED' %}Cancelada
+                            {% else %}{{ m.status }}{% endif %}
+                        </span>
+                    </td>
+                    <td>
+                        <div style="display:flex;gap:0.45rem;">
+                            <a href="{% url 'operator' %}?mission_id={{ m.mission_id }}" class="btn btn-sm btn-primary">
+                                Simular
+                            </a>
+                            <a href="{% url 'commander' %}?mission_id={{ m.mission_id }}" class="btn btn-sm btn-outline">
+                                Auditar
+                            </a>
+                        </div>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</section>
+
+<!-- MODAL REGISTRO DE NUEVA AERONAVE (MONGODB CRUD) -->
+<div id="newDroneModal" class="modal-backdrop" style="display:none;">
+    <div class="modal-dialog">
+        <div class="modal-header">
+            <div style="display:flex;align-items:center;gap:0.6rem;">
+                <span style="display:inline-flex;padding:0.4rem;background:var(--primary-blue-light);color:var(--primary-blue);border-radius:4px;">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <rect x="2" y="7" width="20" height="14" rx="2" ry="2"/>
+                        <path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/>
+                    </svg>
+                </span>
+                <div>
+                    <h3 style="font-size:1.1rem;font-weight:700;color:var(--text-main);margin:0;">Registrar Nueva Aeronave en la Flota</h3>
+                    <p style="font-size:0.75rem;color:var(--text-muted);margin:2px 0 0 0;">Configuración y alta operativa de nueva unidad UAV en la flota</p>
+                </div>
+            </div>
+            <button type="button" class="modal-close" onclick="closeNewDroneModal()">&times;</button>
+        </div>
+
+        <form id="newDroneForm" onsubmit="handleCreateDroneSubmit(event)">
+            <div class="modal-body">
+                <div id="droneFormAlert" style="display:none;padding:0.75rem 1rem;border-radius:4px;font-size:0.8rem;margin-bottom:1rem;"></div>
+
+                <div style="display:grid;grid-template-columns:1fr 2fr;gap:0.85rem;margin-bottom:0.85rem;">
+                    <div>
+                        <label class="form-label">ID Aeronave *</label>
+                        <input type="text" id="droneIdInput" class="form-control" placeholder="Ej: DRN-RBG-05" style="font-family:var(--font-mono);font-weight:600;" required>
+                    </div>
+                    <div>
+                        <label class="form-label">Nombre Operativo *</label>
+                        <input type="text" id="droneNameInput" class="form-control" placeholder="Ej: Valkyrie Recon X1" required>
+                    </div>
+                </div>
+
+                <div style="display:grid;grid-template-columns:1.5fr 1fr;gap:0.85rem;margin-bottom:0.85rem;">
+                    <div>
+                        <label class="form-label">Modelo Industrial / Chasis *</label>
+                        <input type="text" id="droneModelInput" class="form-control" placeholder="Ej: DJI Matrice 350 RTK Industrial" required>
+                    </div>
+                    <div>
+                        <label class="form-label">Operador Asignado *</label>
+                        <select id="droneOperatorInput" class="form-select">
+                            <option value="Rodrigo Tapia">Rodrigo Tapia</option>
+                            <option value="Benjamin Garcia">Benjamin Garcia</option>
+                            <option value="Gustavo Jaramillo">Gustavo Jaramillo</option>
+                            <option value="Operador Externo">Operador Externo</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div style="display:grid;grid-template-columns:repeat(4, 1fr);gap:0.75rem;margin-bottom:1rem;">
+                    <div>
+                        <label class="form-label">Estado Inicial</label>
+                        <select id="droneStatusInput" class="form-select">
+                            <option value="AVAILABLE" selected>AVAILABLE</option>
+                            <option value="MAINTENANCE">MAINTENANCE</option>
+                            <option value="IN_MISSION">IN_MISSION</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="form-label">Batería (%)</label>
+                        <input type="number" id="droneBatteryInput" class="form-control" min="1" max="100" value="100" required>
+                    </div>
+                    <div>
+                        <label class="form-label">Velocidad (km/h)</label>
+                        <input type="number" id="droneSpeedInput" class="form-control" step="0.5" value="75.0" required>
+                    </div>
+                    <div>
+                        <label class="form-label">Autonomía (min)</label>
+                        <input type="number" id="droneAutonomyInput" class="form-control" value="45" required>
+                    </div>
+                </div>
+
+                <div style="margin-bottom:1rem;">
+                    <label class="form-label">Cargas Útiles y Sensores Instalados</label>
+                    <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(210px, 1fr));gap:0.5rem;background:var(--bg-card-subtle);padding:0.75rem;border-radius:4px;border:1px solid var(--border-subtle);font-size:0.78rem;">
+                        <label style="display:flex;align-items:center;gap:0.4rem;cursor:pointer;">
+                            <input type="checkbox" name="payloadOption" value="Cámara Zenmuse H20T (Térmica + Zoom 200x)" checked>
+                            <span>Cámara Térmica FLIR + Zoom</span>
+                        </label>
+                        <label style="display:flex;align-items:center;gap:0.4rem;cursor:pointer;">
+                            <input type="checkbox" name="payloadOption" value="Cámara RGB 48MP de Alta Resolución" checked>
+                            <span>Cámara RGB 48MP</span>
+                        </label>
+                        <label style="display:flex;align-items:center;gap:0.4rem;cursor:pointer;">
+                            <input type="checkbox" name="payloadOption" value="Sensor Multiespectral MicaSense RedEdge-P">
+                            <span>Multiespectral NDVI</span>
+                        </label>
+                        <label style="display:flex;align-items:center;gap:0.4rem;cursor:pointer;">
+                            <input type="checkbox" name="payloadOption" value="Telémetro Láser (LIDAR de Precisión)">
+                            <span>Telémetro Láser (LiDAR 3D)</span>
+                        </label>
+                        <label style="display:flex;align-items:center;gap:0.4rem;cursor:pointer;">
+                            <input type="checkbox" name="payloadOption" value="Detección IA de Intrusos a Bordo">
+                            <span>Detección IA a Bordo</span>
+                        </label>
+                        <label style="display:flex;align-items:center;gap:0.4rem;cursor:pointer;">
+                            <input type="checkbox" name="payloadOption" value="Foco Nocturno 12000lm & Megáfono">
+                            <span>Foco Nocturno & Megáfono</span>
+                        </label>
+                    </div>
+                </div>
+
+                <div style="display:grid;grid-template-columns:2fr 1fr;gap:0.85rem;">
+                    <div>
+                        <label class="form-label">Base de Operaciones (Home Base)</label>
+                        <input type="text" id="droneBaseNameInput" class="form-control" value="Base Central RBG Santiago">
+                    </div>
+                    <div>
+                        <label class="form-label">Salud del Hardware</label>
+                        <select id="droneHealthInput" class="form-select">
+                            <option value="EXCELLENT" selected>EXCELLENT</option>
+                            <option value="GOOD">GOOD</option>
+                            <option value="INSPECTION_REQUIRED">INSPECTION</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline" onclick="closeNewDroneModal()">Cancelar</button>
+                <button type="submit" id="btnSaveDrone" class="btn btn-primary" style="display:inline-flex;align-items:center;gap:0.5rem;">
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/>
+                        <polyline points="17 21 17 13 7 13 7 21"/>
+                        <polyline points="7 3 7 8 15 8"/>
+                    </svg>
+                    Registrar Aeronave
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<style>
+.modal-backdrop {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background: rgba(15, 23, 42, 0.65);
+    backdrop-filter: blur(4px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 9999;
+    padding: 1rem;
+}
+.modal-dialog {
+    background: #ffffff;
+    border-radius: 8px;
+    border: 1px solid var(--border-subtle);
+    box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.25), 0 10px 10px -5px rgba(0, 0, 0, 0.1);
+    max-width: 660px;
+    width: 100%;
+    max-height: 90vh;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    animation: modalSlideDown 0.2s ease-out;
+}
+@keyframes modalSlideDown {
+    from { transform: translateY(-20px); opacity: 0; }
+    to { transform: translateY(0); opacity: 1; }
+}
+.modal-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 1.1rem 1.4rem;
+    border-bottom: 1px solid var(--border-subtle);
+    background: var(--bg-card-subtle);
+}
+.modal-close {
+    background: transparent;
+    border: none;
+    font-size: 1.5rem;
+    color: var(--text-dim);
+    cursor: pointer;
+    line-height: 1;
+    padding: 0.2rem 0.5rem;
+    border-radius: 4px;
+}
+.modal-close:hover {
+    color: var(--text-main);
+    background: var(--border-subtle);
+}
+.modal-body {
+    padding: 1.3rem 1.4rem;
+    overflow-y: auto;
+}
+.modal-footer {
+    display: flex;
+    justify-content: flex-end;
+    gap: 0.75rem;
+    padding: 1rem 1.4rem;
+    border-top: 1px solid var(--border-subtle);
+    background: var(--bg-card-subtle);
+}
+.form-label {
+    display: block;
+    font-size: 0.74rem;
+    font-weight: 600;
+    color: var(--text-main);
+    margin-bottom: 0.35rem;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+}
+.form-control, .form-select {
+    width: 100%;
+    padding: 0.45rem 0.65rem;
+    font-size: 0.82rem;
+    color: var(--text-main);
+    background: #ffffff;
+    border: 1px solid #cbd5e1;
+    border-radius: 4px;
+    outline: none;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+.form-control:focus, .form-select:focus {
+    border-color: #0284c7;
+    box-shadow: 0 0 0 2px #e0f2fe;
+}
+</style>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+async function resetDatabaseSeed() {
+    if (!confirm('¿Deseas reiniciar la flota y las misiones con los datos de prueba del sistema?')) return;
+    try {
+        const res = await fetch('/api/reset-seed/', { method: 'POST' });
+        const data = await res.json();
+        alert(data.message);
+        location.reload();
+    } catch (e) {
+        alert('Error: ' + e);
+    }
+}
+
+function openNewDroneModal() {
+    const modal = document.getElementById('newDroneModal');
+    const alertBox = document.getElementById('droneFormAlert');
+    alertBox.style.display = 'none';
+    
+    // Auto-generar sugerencia de ID según cantidad actual de drones
+    const currentRows = document.querySelectorAll('table.hud-table tbody tr').length;
+    const nextNum = String(currentRows + 1).padStart(2, '0');
+    document.getElementById('droneIdInput').value = 'DRN-RBG-' + nextNum;
+    
+    modal.style.display = 'flex';
+}
+
+function closeNewDroneModal() {
+    document.getElementById('newDroneModal').style.display = 'none';
+}
+
+// Cerrar con Escape o clic fuera
+window.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') closeNewDroneModal();
+});
+document.getElementById('newDroneModal')?.addEventListener('click', (e) => {
+    if (e.target.id === 'newDroneModal') closeNewDroneModal();
+});
+
+async function handleCreateDroneSubmit(event) {
+    event.preventDefault();
+    const btn = document.getElementById('btnSaveDrone');
+    const alertBox = document.getElementById('droneFormAlert');
+    btn.disabled = true;
+    btn.innerText = 'Registrando aeronave...';
+    alertBox.style.display = 'none';
+
+    // Recolectar payloads seleccionados
+    const payloadBoxes = document.querySelectorAll('input[name="payloadOption"]:checked');
+    const payloads = Array.from(payloadBoxes).map(cb => cb.value);
+
+    const dronePayload = {
+        drone_id: document.getElementById('droneIdInput').value.trim(),
+        name: document.getElementById('droneNameInput').value.trim(),
+        model: document.getElementById('droneModelInput').value.trim(),
+        operator_assigned: document.getElementById('droneOperatorInput').value,
+        status: document.getElementById('droneStatusInput').value,
+        battery_level: parseInt(document.getElementById('droneBatteryInput').value) || 100,
+        max_speed_kmh: parseFloat(document.getElementById('droneSpeedInput').value) || 75.0,
+        max_flight_time_min: parseInt(document.getElementById('droneAutonomyInput').value) || 45,
+        payload_types: payloads,
+        health_status: document.getElementById('droneHealthInput').value,
+        home_base: {
+            name: document.getElementById('droneBaseNameInput').value.trim() || 'Base Central RBG Santiago',
+            lat: -33.4372,
+            lng: -70.6506,
+            alt: 560.0
+        }
+    };
+
+    try {
+        const response = await fetch('/api/drones/', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(dronePayload)
+        });
+
+        const result = await response.json();
+
+        if (!response.ok) {
+            throw new Error(result.error || 'Error al guardar aeronave');
+        }
+
+        alertBox.style.display = 'block';
+        alertBox.style.background = '#ecfdf5';
+        alertBox.style.color = '#065f46';
+        alertBox.style.border = '1px solid #a7f3d0';
+        alertBox.innerHTML = `✓ <strong>¡Aeronave Registrada!</strong> ${result.message} Actualizando flota...`;
+
+        setTimeout(() => {
+            location.reload();
+        }, 1200);
+
+    } catch (err) {
+        alertBox.style.display = 'block';
+        alertBox.style.background = '#fef2f2';
+        alertBox.style.color = '#991b1b';
+        alertBox.style.border = '1px solid #fecaca';
+        alertBox.innerHTML = `✕ <strong>Error:</strong> ${err.message}`;
+        btn.disabled = false;
+        btn.innerText = 'Registrar Aeronave';
+    }
+}
+</script>
+{% endblock %}
